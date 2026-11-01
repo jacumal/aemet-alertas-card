@@ -115,6 +115,72 @@ class AemetAlertasCard extends HTMLElement {
     return value ? String(value) : "—";
   }
 
+  _translateAlertValue(value, kind) {
+    if (value === null || value === undefined || value === "") return "—";
+
+    const raw = String(value).trim();
+    const normalized = raw.toLowerCase();
+
+    const translations = {
+      severity: {
+        extreme: "Extrema",
+        severe: "Severa",
+        moderate: "Moderada",
+        minor: "Leve",
+        unknown: "Desconocida",
+        extrema: "Extrema",
+        severa: "Severa",
+        moderada: "Moderada",
+        leve: "Leve",
+        desconocida: "Desconocida",
+      },
+      urgency: {
+        immediate: "Inmediata",
+        expected: "Esperada",
+        future: "Futura",
+        past: "Pasada",
+        unknown: "Desconocida",
+        inmediata: "Inmediata",
+        esperada: "Esperada",
+        futura: "Futura",
+        pasada: "Pasada",
+        desconocida: "Desconocida",
+      },
+      certainty: {
+        observed: "Observada",
+        likely: "Probable",
+        possible: "Posible",
+        unlikely: "Poco probable",
+        unknown: "Desconocida",
+        observada: "Observada",
+        probable: "Probable",
+        posible: "Posible",
+        "poco probable": "Poco probable",
+        desconocida: "Desconocida",
+      },
+    };
+
+    if (translations[kind]?.[normalized]) return translations[kind][normalized];
+
+    return raw
+      .replace(/\bPrecipitation\b/gi, "Precipitación")
+      .replace(/\bRain\b/gi, "Lluvia")
+      .replace(/\bShowers\b/gi, "Chubascos")
+      .replace(/\bThunderstorms?\b/gi, "Tormentas")
+      .replace(/\bLightning\b/gi, "Rayos")
+      .replace(/\bWind\b/gi, "Viento")
+      .replace(/\bGusts?\b/gi, "Rachas")
+      .replace(/\bSnow\b/gi, "Nieve")
+      .replace(/\bIce\b/gi, "Hielo")
+      .replace(/\bFog\b/gi, "Niebla")
+      .replace(/\bWaves?\b/gi, "Oleaje")
+      .replace(/\bCoast(?:al)?\b/gi, "Costero")
+      .replace(/\bTemperature\b/gi, "Temperatura")
+      .replace(/\bHeat\b/gi, "Calor")
+      .replace(/\bDust\b/gi, "Polvo")
+      .replace(/\bHaze\b/gi, "Calima");
+  }
+
   _getPhenomenon(alert) {
     const event = alert?.event || alert?.headline || "Aviso meteorológico";
     return event.replace(/^Aviso de\s+/i, "");
@@ -280,9 +346,9 @@ class AemetAlertasCard extends HTMLElement {
           <div class="metrics">
             ${this._metric(this._metricIcon(type), "Parámetro", parameter)}
             ${this._metric("mdi:percent", "Probabilidad", this._formatProbability(alert.probability))}
-            ${this._metric("mdi:alert-circle-outline", "Severidad", alert.severity || "—")}
-            ${this._metric("mdi:clock-alert-outline", "Urgencia", alert.urgency || "—")}
-            ${this._metric("mdi:shield-check-outline", "Certeza", alert.certainty || "—")}
+            ${this._metric("mdi:alert-circle-outline", "Severidad", this._translateAlertValue(alert.severity, "severity"))}
+            ${this._metric("mdi:clock-alert-outline", "Urgencia", this._translateAlertValue(alert.urgency, "urgency"))}
+            ${this._metric("mdi:shield-check-outline", "Certeza", this._translateAlertValue(alert.certainty, "certainty"))}
             ${this._metric("mdi:map-marker-outline", "Zona", alert.area_desc || state.attributes?.area || "—")}
           </div>
 
@@ -359,7 +425,7 @@ class AemetAlertasCard extends HTMLElement {
   }
 
   _getParameter(alert) {
-    if (alert?.parameter) return alert.parameter;
+    if (alert?.parameter) return this._translateAlertValue(alert.parameter, "parameter");
     return alert?.description || "";
   }
 
@@ -467,56 +533,34 @@ class AemetAlertasCard extends HTMLElement {
       .wind-line { position:absolute; height:2px; border-radius:999px; background:color-mix(in srgb, var(--aemet-accent) 65%, white 35%); left:-30%; animation:windSweep 2.8s linear infinite; opacity:.7; }
       .wind-line.w1{top:25%;width:70%;animation-delay:-.2s}.wind-line.w2{top:36%;width:45%;animation-delay:-1.1s}.wind-line.w3{top:48%;width:80%;animation-delay:-1.8s}.wind-line.w4{top:61%;width:55%;animation-delay:-.7s}.wind-line.w5{top:72%;width:75%;animation-delay:-2.3s}.wind-line.w6{top:84%;width:42%;animation-delay:-1.5s}
       .snow-flake { position:absolute; color:#e8f5ff; font-size:12px; text-shadow:0 0 8px rgba(255,255,255,.8); animation:snowFall 4.5s linear infinite; }
-      .snow-flake.s1{left:10%;top:-5%;animation-delay:-1s}.snow-flake.s2{left:22%;top:10%;animation-delay:-3s}.snow-flake.s3{left:36%;top:-8%;animation-delay:-2s}.snow-flake.s4{left:51%;top:5%;animation-delay:-4s}.snow-flake.s5{left:66%;top:-4%;animation-delay:-.5s}.snow-flake.s6{left:79%;top:14%;animation-delay:-2.5s}.snow-flake.s7{left:90%;top:-10%;animation-delay:-3.5s}.snow-flake.s8{left:43%;top:20%;animation-delay:-1.7s}.snow-flake.s9{left:72%;top:28%;animation-delay:-3.7s}.snow-flake.s10{left:16%;top:32%;animation-delay:-.7s}.snow-flake.s11{left:58%;top:30%;animation-delay:-2.8s}
-      .wave { position:absolute; width:150%; height:45px; left:-25%; border:2px solid color-mix(in srgb, var(--aemet-accent) 60%, #9ed9ff 40%); border-left-color:transparent; border-right-color:transparent; border-radius:50%; animation:waveMove 4s ease-in-out infinite; opacity:.65; }
-      .wave1{bottom:15%;}.wave2{bottom:30%;animation-delay:-1.2s;opacity:.45}.wave3{bottom:45%;animation-delay:-2.4s;opacity:.3}
-      .fog-layer { position:absolute; width:150%; height:32px; left:-25%; border-radius:50%; background:color-mix(in srgb, var(--aemet-accent) 15%, white 85%); filter:blur(7px); animation:fogMove 8s ease-in-out infinite; opacity:.42; }.f1{top:28%}.f2{top:48%;animation-delay:-3s}.f3{top:67%;animation-delay:-5s}
-      .heat-sun, .sun-glow { position:absolute; width:54px; height:54px; border-radius:50%; right:22%; top:20%; background:#ffd76a; box-shadow:0 0 35px #ffc83d,0 0 75px color-mix(in srgb, var(--aemet-accent) 35%, transparent); animation:sunPulse 3.2s ease-in-out infinite; }
-      .heat-wave { position:absolute; bottom:18%; width:3px; height:42%; border-radius:50%; border-left:2px solid color-mix(in srgb, var(--aemet-accent) 60%, white 40%); filter:blur(1px); animation:heatWave 2.4s ease-in-out infinite; }.h1{left:28%}.h2{left:48%;animation-delay:-.8s}.h3{left:68%;animation-delay:-1.6s}
-      .dust-haze { position:absolute; inset:20% -10%; background:linear-gradient(90deg,transparent,color-mix(in srgb, #c9a56a 25%, transparent),transparent); filter:blur(10px); animation:dustMove 6s ease-in-out infinite; }.dust-particle{position:absolute;width:3px;height:3px;border-radius:50%;background:#d5b477;animation:dustFloat 3.5s ease-in-out infinite}.p1{left:8%;top:40%}.p2{left:18%;top:60%;animation-delay:-1s}.p3{left:32%;top:30%;animation-delay:-2s}.p4{left:46%;top:72%;animation-delay:-.5s}.p5{left:58%;top:43%;animation-delay:-1.7s}.p6{left:70%;top:62%;animation-delay:-2.6s}.p7{left:82%;top:34%;animation-delay:-.9s}.p8{left:91%;top:70%;animation-delay:-2.2s}.p9{left:38%;top:53%;animation-delay:-3s}
-      .soft-cloud { width:90px; height:28px; right:15%; top:30%; opacity:.42; animation:cloudFloat 9s ease-in-out infinite; }
-      .sun-glow { width:48px; height:48px; opacity:.75; }
-      .scene-weather .soft-cloud::before, .scene-weather .soft-cloud::after { content:""; position:absolute; border-radius:50%; background:inherit; }.scene-weather .soft-cloud::before{width:38px;height:38px;left:14px;bottom:5px}.scene-weather .soft-cloud::after{width:45px;height:45px;right:10px;bottom:3px}
-
-      .icon-rain ha-icon { animation:iconBob 2.6s ease-in-out infinite; }
-      .icon-storm ha-icon { animation:iconStorm 2.5s ease-in-out infinite; }
-      .icon-wind ha-icon { animation:iconWind 2.2s ease-in-out infinite; }
-      .icon-snow ha-icon { animation:iconSnow 3.2s ease-in-out infinite; }
-      .icon-fog ha-icon { animation:iconFog 3.8s ease-in-out infinite; }
-      .icon-waves ha-icon { animation:iconWave 2.6s ease-in-out infinite; }
-      .icon-heat ha-icon { animation:iconHeat 2.8s ease-in-out infinite; }
-
-      @keyframes rainFall { 0%{transform:translate3d(-5px,-35px,0) rotate(16deg);opacity:0} 15%{opacity:.7} 100%{transform:translate3d(10px,150px,0) rotate(16deg);opacity:0} }
-      @keyframes lightningFlash { 0%,43%,46%,100%{opacity:0} 44%,45%{opacity:1} }
-      @keyframes cloudFloat { 0%,100%{transform:translateX(0)} 50%{transform:translateX(-12px)} }
-      @keyframes windSweep { 0%{transform:translateX(0);opacity:0} 15%{opacity:.7} 85%{opacity:.7} 100%{transform:translateX(145%);opacity:0} }
-      @keyframes snowFall { 0%{transform:translate3d(0,-25px,0) rotate(0);opacity:0} 12%{opacity:.85} 100%{transform:translate3d(18px,180px,0) rotate(220deg);opacity:0} }
-      @keyframes waveMove { 0%,100%{transform:translateX(-4%) scaleY(.9)} 50%{transform:translateX(4%) scaleY(1.08)} }
-      @keyframes fogMove { 0%,100%{transform:translateX(-5%)} 50%{transform:translateX(8%)} }
-      @keyframes sunPulse { 0%,100%{transform:scale(.95);opacity:.75} 50%{transform:scale(1.08);opacity:1} }
-      @keyframes heatWave { 0%,100%{transform:skewX(-8deg) scaleY(.9);opacity:.25} 50%{transform:skewX(8deg) scaleY(1.1);opacity:.75} }
-      @keyframes dustMove { 0%,100%{transform:translateX(-8%)} 50%{transform:translateX(8%)} }
-      @keyframes dustFloat { 0%,100%{transform:translate(0,0);opacity:.2} 50%{transform:translate(15px,-10px);opacity:.75} }
-      @keyframes iconBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(3px)} }
-      @keyframes iconStorm { 0%,70%,100%{transform:translateY(0) scale(1)} 74%{transform:translateY(-2px) scale(1.08)} 78%{transform:translateY(1px) scale(.98)} }
-      @keyframes iconWind { 0%,100%{transform:translateX(0)} 50%{transform:translateX(5px)} }
-      @keyframes iconSnow { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(3px) rotate(4deg)} }
-      @keyframes iconFog { 0%,100%{transform:translateX(-2px)} 50%{transform:translateX(3px)} }
-      @keyframes iconWave { 0%,100%{transform:translateY(1px)} 50%{transform:translateY(-3px)} }
-      @keyframes iconHeat { 0%,100%{transform:scale(1) rotate(-2deg)} 50%{transform:scale(1.05) rotate(2deg)} }
-
-      @media (max-width: 600px) {
+      .snow-flake.s1{left:10%;top:-5%;animation-delay:-1s}.snow-flake.s2{left:22%;top:10%;animation-delay:-3s}.snow-flake.s3{left:36%;top:-8%;animation-delay:-2s}.snow-flake.s4{left:51%;top:5%;animation-delay:-4s}.snow-flake.s5{left:66%;top:-4%;animation-delay:-.7s}.snow-flake.s6{left:78%;top:11%;animation-delay:-2.5s}.snow-flake.s7{left:88%;top:-7%;animation-delay:-1.7s}.snow-flake.s8{left:42%;top:21%;animation-delay:-3.6s}.snow-flake.s9{left:18%;top:29%;animation-delay:-2.2s}.snow-flake.s10{left:61%;top:34%;animation-delay:-4.2s}.snow-flake.s11{left:92%;top:24%;animation-delay:-1.3s}
+      .fog-layer { position:absolute; left:-20%; width:140%; height:18px; border-radius:999px; background:color-mix(in srgb, var(--aemet-accent) 28%, white 72%); filter:blur(5px); opacity:.42; animation:fogDrift 8s ease-in-out infinite; }
+      .fog-layer.f1{top:28%;animation-delay:-1s}.fog-layer.f2{top:48%;animation-delay:-4s}.fog-layer.f3{top:68%;animation-delay:-2.5s}
+      .wave { position:absolute; left:-10%; width:120%; height:34px; border-radius:50%; border:3px solid color-mix(in srgb, var(--aemet-accent) 50%, #bfe8ff 50%); border-left-color:transparent; border-right-color:transparent; animation:waveRoll 4s ease-in-out infinite; opacity:.55; }
+      .wave1{top:34%;animation-delay:-1s}.wave2{top:50%;animation-delay:-2.5s}.wave3{top:66%;animation-delay:-.4s}
+      .heat-sun { position:absolute; width:72px; height:72px; border-radius:50%; background:radial-gradient(circle, #fff5a3 0 38%, color-mix(in srgb, var(--aemet-accent) 70%, #ffd54a 30%) 60%, transparent 70%); top:16%; right:18%; animation:sunPulse 4s ease-in-out infinite; }
+      .heat-wave { position:absolute; width:50px; height:2px; background:color-mix(in srgb, var(--aemet-accent) 55%, white 45%); border-radius:999px; left:18%; transform:rotate(-15deg); animation:heatWave 2.5s ease-in-out infinite; opacity:.45; }.heat-wave.h1{top:48%;animation-delay:-.3s}.heat-wave.h2{top:61%;width:70px;animation-delay:-1.2s}.heat-wave.h3{top:74%;width:40px;animation-delay:-1.8s}
+      .dust-haze { position:absolute; inset:15% -10% 25%; background:radial-gradient(ellipse at center, color-mix(in srgb, var(--aemet-accent) 25%, #d9c08a 75%), transparent 70%); filter:blur(10px); animation:dustPulse 5s ease-in-out infinite; }
+      .dust-particle { position:absolute; width:5px; height:5px; border-radius:50%; background:color-mix(in srgb, var(--aemet-accent) 60%, #d8c28c 40%); opacity:.5; animation:dustMove 5s linear infinite; }.dust-particle.p1{left:10%;top:30%;animation-delay:-.5s}.dust-particle.p2{left:24%;top:64%;animation-delay:-2s}.dust-particle.p3{left:39%;top:22%;animation-delay:-3s}.dust-particle.p4{left:55%;top:71%;animation-delay:-1.3s}.dust-particle.p5{left:68%;top:38%;animation-delay:-2.7s}.dust-particle.p6{left:81%;top:58%;animation-delay:-4s}.dust-particle.p7{left:92%;top:29%;animation-delay:-1.8s}.dust-particle.p8{left:47%;top:44%;animation-delay:-3.8s}.dust-particle.p9{left:15%;top:82%;animation-delay:-2.2s}
+      .sun-glow { position:absolute; width:130px; height:130px; border-radius:50%; right:8%; top:-30%; background:radial-gradient(circle, color-mix(in srgb, var(--aemet-accent) 38%, #ffe88a 62%), transparent 68%); filter:blur(5px); animation:sunPulse 5s ease-in-out infinite; }
+      .soft-cloud { width:105px; height:28px; right:10%; top:26%; opacity:.35; animation:cloudFloat 9s ease-in-out infinite; }
+      @keyframes cloudFloat { 0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-12px,4px,0)} }
+      @keyframes rainFall { 0%{transform:translate3d(0,-28px,0) rotate(16deg);opacity:0}15%{opacity:.65}100%{transform:translate3d(-8px,150px,0) rotate(16deg);opacity:0} }
+      @keyframes lightningFlash { 0%,88%,100%{opacity:0}90%{opacity:.95}91%{opacity:.2}92%{opacity:.9}94%{opacity:0} }
+      @keyframes windSweep { 0%{transform:translate3d(0,0,0);opacity:0}20%{opacity:.7}100%{transform:translate3d(150%,0,0);opacity:0} }
+      @keyframes snowFall { 0%{transform:translate3d(0,-25px,0) rotate(0deg);opacity:0}15%{opacity:.8}100%{transform:translate3d(-18px,150px,0) rotate(180deg);opacity:0} }
+      @keyframes fogDrift { 0%,100%{transform:translateX(-3%)}50%{transform:translateX(8%)} }
+      @keyframes waveRoll { 0%,100%{transform:translateX(-2%) scaleY(.85)}50%{transform:translateX(3%) scaleY(1.05)} }
+      @keyframes sunPulse { 0%,100%{transform:scale(.96);opacity:.75}50%{transform:scale(1.06);opacity:1} }
+      @keyframes heatWave { 0%,100%{transform:translateY(3px) rotate(-15deg);opacity:.25}50%{transform:translateY(-5px) rotate(-10deg);opacity:.65} }
+      @keyframes dustPulse { 0%,100%{transform:scale(.98);opacity:.5}50%{transform:scale(1.04);opacity:.8} }
+      @keyframes dustMove { 0%{transform:translate3d(-15px,0,0);opacity:0}20%{opacity:.5}100%{transform:translate3d(60px,-12px,0);opacity:0} }
+      @media (max-width:700px) {
         .card-content { padding:14px; }
         .hero-phenomenon { font-size:20px; }
-        .hero-icon { width:72px; height:72px; }
-        .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
         .detail-alert { grid-template-columns:1fr; }
-        .detail-visual { min-height:110px; }
-        .detail-icon-large { margin-top:16px; }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .weather-scene *, .phenomenon-icon *, .compact-alert { animation:none !important; transition:none !important; }
+        .detail-visual { min-height:130px; }
+        .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
       }
     </style>`;
   }
@@ -525,11 +569,3 @@ class AemetAlertasCard extends HTMLElement {
 if (!customElements.get("aemet-alertas-card")) {
   customElements.define("aemet-alertas-card", AemetAlertasCard);
 }
-
-window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "aemet-alertas-card",
-  name: "AEMET Alertas",
-  description: "Premium animated weather alert card for AEMET Alertas.",
-  preview: true,
-});
