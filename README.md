@@ -26,11 +26,11 @@ Ejemplos reales de la tarjeta mostrando diferentes niveles y tipos de avisos met
 <table>
 <tr>
 <td align="center" width="50%">
-<img src="screenshots/aemet-alerta-naranja-tenerife.png" alt="AEMET Alertas Card - Aviso naranja en Tenerife" width="100%">
+<img src="screenshots/aemet-alerta-naranja-tenerife.PNG" alt="AEMET Alertas Card - Aviso naranja en Tenerife" width="100%">
 <br><sub>🟠 Aviso naranja · Área metropolitana de Tenerife</sub>
 </td>
 <td align="center" width="50%">
-<img src="screenshots/aemet-alerta-amarillo-ampurdan.png" alt="AEMET Alertas Card - Aviso amarillo en Ampurdán" width="100%">
+<img src="screenshots/aemet-alerta-amarillo-ampurdan.PNG" alt="AEMET Alertas Card - Aviso amarillo en Ampurdán" width="100%">
 <br><sub>🟡 Aviso amarillo · Costa - Ampurdán</sub>
 </td>
 </tr>
@@ -236,8 +236,8 @@ El nivel se obtiene de los datos del aviso y se utiliza para adaptar automática
 ├── hacs.json
 ├── README.md
 ├── screenshots/
-│   ├── aemet-alerta-naranja-tenerife.png
-│   └── aemet-alerta-amarillo-ampurdan.png
+│   ├── aemet-alerta-naranja-tenerife.PNG
+│   └── aemet-alerta-amarillo-ampurdan.PNG
 └── LICENSE
 ```
 
