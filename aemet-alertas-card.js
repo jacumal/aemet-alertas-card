@@ -47,6 +47,8 @@ import "./aemet-alertas-card-core.js";
       parent.style.overflow = "hidden";
     }
 
+    title.querySelector(".aemet-marquee-track")?.remove();
+
     const track = document.createElement("span");
     track.className = "aemet-marquee-track";
     track.style.display = "inline-flex";
@@ -93,14 +95,8 @@ import "./aemet-alertas-card-core.js";
 
     const cycle = textWidth + GAP;
     const duration = Math.max(3000, (cycle / SPEED) * 1000);
-    const progress = Math.max(0, Math.min(0.999999, Number(preservedProgress) || 0));
 
     cancelAnimation(title);
-
-    // Paint the replacement DOM at the exact position where the previous
-    // marquee was. This prevents the one-frame flash back to position 0 when
-    // Home Assistant rebuilds the card.
-    track.style.transform = `translate3d(-${cycle * progress}px, 0, 0)`;
 
     if (typeof track.animate !== "function") return;
 
@@ -117,7 +113,7 @@ import "./aemet-alertas-card-core.js";
       }
     );
 
-    animation.currentTime = progress * duration;
+    animation.currentTime = Math.max(0, Math.min(0.999999, preservedProgress)) * duration;
 
     title._aemetMarqueeAnimation = animation;
     title._aemetMarqueeCycle = cycle;
@@ -142,11 +138,9 @@ import "./aemet-alertas-card-core.js";
       buildMarquee(title, text);
     }
 
-    // Do this immediately after the core render. Waiting two animation frames
-    // leaves the freshly-rendered plain title visible and causes a perceptible
-    // flash. startAnimation measures the final layout and restores the exact
-    // previous phase before the browser paints the next frame.
-    startAnimation(title, preservedProgress);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => startAnimation(title, preservedProgress));
+    });
   };
 
   const enhanceCard = (card, preservedProgress = 0) => {
@@ -161,7 +155,7 @@ import "./aemet-alertas-card-core.js";
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV19) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV18) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
@@ -172,12 +166,12 @@ import "./aemet-alertas-card-core.js";
 
       originalRender.apply(this, args);
 
-      // Rebuild the marquee synchronously so the newly rendered title is never
-      // painted in its unanimated state.
-      enhanceCard(this, this._aemetMarqueeProgress || 0);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => enhanceCard(this, this._aemetMarqueeProgress || 0));
+      });
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV19 = true;
+    Card.prototype._aemetMarqueeRenderPatchV18 = true;
   };
 
   const boot = () => {
