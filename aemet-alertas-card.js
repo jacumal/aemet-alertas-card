@@ -27,6 +27,99 @@ import "./aemet-alertas-card-core.js";
     return (time < 0 ? time + duration : time) / duration;
   };
 
+  /*
+   * The card core historically uses `this.innerHTML = ...` on every Home Assistant
+   * update. Replacing the whole DOM destroys the animated title and is the source
+   * of the visible flashes/jumps. We intercept that assignment only for this card
+   * and morph the existing DOM in place, deliberately preserving `.title`.
+   */
+  const morphNode = (oldNode, newNode) => {
+    if (oldNode.nodeType !== newNode.nodeType) {
+      const replacement = newNode.cloneNode(true);
+      oldNode.replaceWith(replacement);
+      return replacement;
+    }
+
+    if (oldNode.nodeType === Node.TEXT_NODE || oldNode.nodeType === Node.COMMENT_NODE) {
+      if (oldNode.nodeValue !== newNode.nodeValue) oldNode.nodeValue = newNode.nodeValue;
+      return oldNode;
+    }
+
+    if (oldNode.nodeName !== newNode.nodeName) {
+      const replacement = newNode.cloneNode(true);
+      oldNode.replaceWith(replacement);
+      return replacement;
+    }
+
+    const oldElement = oldNode;
+    const newElement = newNode;
+
+    // The marquee owns this node. Keep the live animated track untouched.
+    if (oldElement.classList?.contains("title") && newElement.classList?.contains("title")) {
+      oldElement._aemetMarqueeNextText = newElement.textContent.trim();
+      return oldElement;
+    }
+
+    for (const attr of Array.from(oldElement.attributes)) {
+      if (!newElement.hasAttribute(attr.name)) oldElement.removeAttribute(attr.name);
+    }
+    for (const attr of Array.from(newElement.attributes)) {
+      if (oldElement.getAttribute(attr.name) !== attr.value) {
+        oldElement.setAttribute(attr.name, attr.value);
+      }
+    }
+
+    const oldChildren = Array.from(oldElement.childNodes);
+    const newChildren = Array.from(newElement.childNodes);
+    const length = Math.max(oldChildren.length, newChildren.length);
+
+    for (let i = length - 1; i >= 0; i--) {
+      const oldChild = oldChildren[i];
+      const newChild = newChildren[i];
+
+      if (!newChild) {
+        oldChild?.remove();
+        continue;
+      }
+
+      if (!oldChild) {
+        oldElement.appendChild(newChild.cloneNode(true));
+        continue;
+      }
+
+      morphNode(oldChild, newChild);
+    }
+
+    return oldElement;
+  };
+
+  const installDomMorph = (card) => {
+    if (card._aemetMarqueeDomMorphInstalled) return;
+
+    const descriptor = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
+    if (!descriptor?.get || !descriptor?.set) return;
+
+    Object.defineProperty(card, "innerHTML", {
+      configurable: true,
+      enumerable: false,
+      get() {
+        return descriptor.get.call(this);
+      },
+      set(value) {
+        if (typeof value !== "string") {
+          descriptor.set.call(this, value);
+          return;
+        }
+
+        const template = document.createElement("template");
+        template.innerHTML = value;
+        morphNode(this, template.content);
+      },
+    });
+
+    card._aemetMarqueeDomMorphInstalled = true;
+  };
+
   const buildMarquee = (title, text) => {
     cancelAnimation(title);
 
@@ -75,6 +168,7 @@ import "./aemet-alertas-card-core.js";
     title.textContent = "";
     title.appendChild(track);
     title._aemetMarqueeOriginalText = text;
+    title._aemetMarqueeNextText = text;
     title._aemetMarqueeTrack = track;
     title._aemetMarqueeFirstCopy = track.firstElementChild;
   };
@@ -125,17 +219,15 @@ import "./aemet-alertas-card-core.js";
     if (!title?.isConnected) return;
 
     const existingTrack = title.querySelector(".aemet-marquee-track");
-    const text = (
-      title._aemetMarqueeOriginalText ||
-      existingTrack?.firstElementChild?.textContent ||
-      title.textContent ||
-      ""
-    ).trim();
+    const nextText = title._aemetMarqueeNextText;
+    const text = (nextText || title._aemetMarqueeOriginalText || existingTrack?.firstElementChild?.textContent || title.textContent || "").trim();
 
     if (!text) return;
 
     if (title._aemetMarqueeOriginalText !== text || !existingTrack) {
       buildMarquee(title, text);
+    } else {
+      title._aemetMarqueeNextText = text;
     }
 
     requestAnimationFrame(() => {
@@ -145,6 +237,7 @@ import "./aemet-alertas-card-core.js";
 
   const enhanceCard = (card, preservedProgress = 0) => {
     if (!card?.isConnected) return;
+    installDomMorph(card);
     card.querySelectorAll(".title").forEach((title) => enhanceTitle(title, preservedProgress));
   };
 
@@ -155,23 +248,23 @@ import "./aemet-alertas-card-core.js";
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV18) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV19) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
 
     Card.prototype._render = function (...args) {
+      installDomMorph(this);
+
       const progress = captureProgress(this);
       this._aemetMarqueeProgress = progress;
 
       originalRender.apply(this, args);
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => enhanceCard(this, this._aemetMarqueeProgress || 0));
-      });
+      enhanceCard(this, this._aemetMarqueeProgress || 0);
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV18 = true;
+    Card.prototype._aemetMarqueeRenderPatchV19 = true;
   };
 
   const boot = () => {
