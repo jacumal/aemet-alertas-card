@@ -8,64 +8,24 @@ import "./aemet-alertas-card-core.js";
     const style = document.createElement("style");
     style.id = RESPONSIVE_STYLE_ID;
     style.textContent = `
-      aemet-alertas-card .detailed-card .card-content {
-        padding: 16px;
-      }
-      aemet-alertas-card .detailed-card .detail-alert {
-        grid-template-columns: 1fr !important;
-        margin-top: 12px;
-      }
-      aemet-alertas-card .detailed-card .detail-visual {
-        min-height: 132px;
-        height: 132px;
-        max-height: 132px;
-      }
-      aemet-alertas-card .detailed-card .detail-visual .weather-scene {
-        opacity: .72;
-      }
-      aemet-alertas-card .detailed-card .detail-icon-large {
-        transform: scale(.92);
-      }
-      aemet-alertas-card .detailed-card .detail-visual .level-chip {
-        top: 10px;
-        left: 10px;
-      }
-      aemet-alertas-card .detailed-card .detail-main {
-        padding: 15px;
-      }
-      aemet-alertas-card .detailed-card .detail-title {
-        font-size: 19px;
-      }
-      aemet-alertas-card .detailed-card .detail-headline {
-        font-size: 12px;
-        line-height: 1.45;
-      }
-      aemet-alertas-card .detailed-card .metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 8px;
-      }
-      aemet-alertas-card .detailed-card .metric {
-        min-height: 52px;
-        padding: 9px;
-      }
-      aemet-alertas-card .detailed-card .times {
-        gap: 8px;
-      }
-      aemet-alertas-card .detailed-card .times > div {
-        min-width: 0;
-        padding: 9px 10px;
-      }
-      aemet-alertas-card .detailed-card .text-block p {
-        line-height: 1.5;
-      }
+      aemet-alertas-card .detailed-card .card-content { padding: 16px; }
+      aemet-alertas-card .detailed-card .detail-alert { grid-template-columns: 1fr !important; margin-top: 12px; }
+      aemet-alertas-card .detailed-card .detail-visual { min-height: 132px; height: 132px; max-height: 132px; }
+      aemet-alertas-card .detailed-card .detail-visual .weather-scene { opacity: .72; }
+      aemet-alertas-card .detailed-card .detail-icon-large { transform: scale(.92); }
+      aemet-alertas-card .detailed-card .detail-visual .level-chip { top: 10px; left: 10px; }
+      aemet-alertas-card .detailed-card .detail-main { padding: 15px; }
+      aemet-alertas-card .detailed-card .detail-title { font-size: 19px; }
+      aemet-alertas-card .detailed-card .detail-headline { font-size: 12px; line-height: 1.45; }
+      aemet-alertas-card .detailed-card .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px; }
+      aemet-alertas-card .detailed-card .metric { min-height: 52px; padding: 9px; }
+      aemet-alertas-card .detailed-card .times { gap: 8px; }
+      aemet-alertas-card .detailed-card .times > div { min-width: 0; padding: 9px 10px; }
+      aemet-alertas-card .detailed-card .text-block p { line-height: 1.5; }
       @media (min-width: 768px) {
         aemet-alertas-card .detailed-card .card-content { padding: 18px; }
         aemet-alertas-card .detailed-card .detail-alert { margin-top: 14px; }
-        aemet-alertas-card .detailed-card .detail-visual {
-          min-height: 165px;
-          height: 165px;
-          max-height: 165px;
-        }
+        aemet-alertas-card .detailed-card .detail-visual { min-height: 165px; height: 165px; max-height: 165px; }
         aemet-alertas-card .detailed-card .detail-icon-large { transform: scale(1); }
         aemet-alertas-card .detailed-card .detail-main { padding: 18px; }
         aemet-alertas-card .detailed-card .detail-title { font-size: 21px; }
@@ -73,15 +33,8 @@ import "./aemet-alertas-card-core.js";
       }
       @media (min-width: 1024px) {
         aemet-alertas-card .detailed-card .card-content { padding: 20px; }
-        aemet-alertas-card .detailed-card .detail-alert {
-          margin-top: 16px;
-          border-radius: 18px;
-        }
-        aemet-alertas-card .detailed-card .detail-visual {
-          min-height: 190px;
-          height: 190px;
-          max-height: 190px;
-        }
+        aemet-alertas-card .detailed-card .detail-alert { margin-top: 16px; border-radius: 18px; }
+        aemet-alertas-card .detailed-card .detail-visual { min-height: 190px; height: 190px; max-height: 190px; }
         aemet-alertas-card .detailed-card .detail-main { padding: 20px; }
         aemet-alertas-card .detailed-card .detail-title { font-size: 23px; }
         aemet-alertas-card .detailed-card .detail-headline { font-size: 13px; }
@@ -90,15 +43,8 @@ import "./aemet-alertas-card-core.js";
       }
       @media (min-width: 1280px) {
         aemet-alertas-card .detailed-card .card-content { padding: 22px; }
-        aemet-alertas-card .detailed-card .detail-alert {
-          margin-top: 18px;
-          border-radius: 20px;
-        }
-        aemet-alertas-card .detailed-card .detail-visual {
-          min-height: 215px;
-          height: 215px;
-          max-height: 215px;
-        }
+        aemet-alertas-card .detailed-card .detail-alert { margin-top: 18px; border-radius: 20px; }
+        aemet-alertas-card .detailed-card .detail-visual { min-height: 215px; height: 215px; max-height: 215px; }
         aemet-alertas-card .detailed-card .detail-main { padding: 22px; }
         aemet-alertas-card .detailed-card .detail-title { font-size: 25px; }
         aemet-alertas-card .detailed-card .metric { min-height: 64px; padding: 12px; }
@@ -163,14 +109,8 @@ import "./aemet-alertas-card-core.js";
     for (let i = length - 1; i >= 0; i--) {
       const oldChild = oldChildren[i];
       const newChild = newChildren[i];
-      if (!newChild) {
-        oldChild?.remove();
-        continue;
-      }
-      if (!oldChild) {
-        oldElement.appendChild(newChild.cloneNode(true));
-        continue;
-      }
+      if (!newChild) { oldChild?.remove(); continue; }
+      if (!oldChild) { oldElement.appendChild(newChild.cloneNode(true)); continue; }
       morphNode(oldChild, newChild);
     }
     return oldElement;
@@ -182,14 +122,8 @@ import "./aemet-alertas-card-core.js";
     for (let i = length - 1; i >= 0; i--) {
       const oldChild = oldChildren[i];
       const newChild = newChildren[i];
-      if (!newChild) {
-        oldChild?.remove();
-        continue;
-      }
-      if (!oldChild) {
-        oldParent.appendChild(newChild.cloneNode(true));
-        continue;
-      }
+      if (!newChild) { oldChild?.remove(); continue; }
+      if (!oldChild) { oldParent.appendChild(newChild.cloneNode(true)); continue; }
       morphNode(oldChild, newChild);
     }
   };
@@ -202,10 +136,7 @@ import "./aemet-alertas-card-core.js";
       enumerable: false,
       get() { return descriptor.get.call(this); },
       set(value) {
-        if (typeof value !== "string") {
-          descriptor.set.call(this, value);
-          return;
-        }
+        if (typeof value !== "string") { descriptor.set.call(this, value); return; }
         const template = document.createElement("template");
         template.innerHTML = value;
         morphChildren(this, template.content);
@@ -243,7 +174,7 @@ import "./aemet-alertas-card-core.js";
       const copy = document.createElement("span");
       copy.className = "aemet-marquee-copy";
       copy.textContent = text;
-      copy.style.display = "inline-block";
+      copy.style.display = i === 0 ? "inline-block" : "none";
       copy.style.width = "auto";
       copy.style.maxWidth = "none";
       copy.style.flex = "none";
@@ -262,14 +193,17 @@ import "./aemet-alertas-card-core.js";
   const startAnimation = (title, preservedProgress = 0) => {
     const track = title._aemetMarqueeTrack;
     const first = title._aemetMarqueeFirstCopy;
+    const second = track?.children?.[1];
     if (!track || !first || !title.isConnected) return;
     const available = title.clientWidth;
     const textWidth = first.getBoundingClientRect().width;
     if (available <= 0 || textWidth <= available + 2) {
       cancelAnimation(title);
+      if (second) second.style.display = "none";
       track.style.transform = "translate3d(0,0,0)";
       return;
     }
+    if (second) second.style.display = "inline-block";
     const cycle = textWidth + GAP;
     const duration = Math.max(3000, (cycle / SPEED) * 1000);
     cancelAnimation(title);
