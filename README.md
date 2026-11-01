@@ -19,6 +19,23 @@
 
 Permite presentar los avisos meteorológicos activos de una zona de Home Assistant de una forma clara, visual y adaptada al **espacio real disponible de la tarjeta**, desde móvil hasta dashboards de escritorio y pantallas grandes.
 
+## 📸 Vista previa
+
+Ejemplos reales de la tarjeta mostrando diferentes niveles y tipos de avisos meteorológicos:
+
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="screenshots/aemet-alerta-naranja-tenerife.png" alt="AEMET Alertas Card - Aviso naranja en Tenerife" width="100%">
+<br><sub>🟠 Aviso naranja · Área metropolitana de Tenerife</sub>
+</td>
+<td align="center" width="50%">
+<img src="screenshots/aemet-alerta-amarillo-ampurdan.png" alt="AEMET Alertas Card - Aviso amarillo en Ampurdán" width="100%">
+<br><sub>🟡 Aviso amarillo · Costa - Ampurdán</sub>
+</td>
+</tr>
+</table>
+
 > **Importante:** este proyecto es independiente y **no está afiliado, patrocinado, respaldado ni mantenido por AEMET**.
 
 ## 🎨 Características
@@ -218,6 +235,9 @@ El nivel se obtiene de los datos del aviso y se utiliza para adaptar automática
 ├── aemet-alertas-card-core.js
 ├── hacs.json
 ├── README.md
+├── screenshots/
+│   ├── aemet-alerta-naranja-tenerife.png
+│   └── aemet-alerta-amarillo-ampurdan.png
 └── LICENSE
 ```
 
