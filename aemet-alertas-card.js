@@ -1,12 +1,12 @@
 /*
  * AEMET Alertas Card — Premium Animated Edition
- * Loader + robust one-way title marquee.
+ * Loader + robust one-way title marquee (v12).
  */
 
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v11";
+  const STYLE_ID = "aemet-alertas-marquee-style-v12";
   const GAP = 42;
   const SPEED = 34; // px/s
   const TICK = 16;
@@ -18,6 +18,7 @@ import "./aemet-alertas-card-core.js";
     style.textContent = `
       aemet-alertas-card .title-wrap {
         min-width: 0 !important;
+        max-width: 100% !important;
         overflow: hidden !important;
       }
       aemet-alertas-card .title.aemet-marquee-title {
@@ -29,20 +30,31 @@ import "./aemet-alertas-card-core.js";
         white-space: nowrap !important;
       }
       aemet-alertas-card .aemet-marquee-track {
-        display: flex !important;
+        display: inline-flex !important;
         width: max-content !important;
         max-width: none !important;
-        flex: 0 0 auto !important;
+        flex: none !important;
         white-space: nowrap !important;
         transform: translate3d(0,0,0);
         will-change: transform;
       }
       aemet-alertas-card .aemet-marquee-copy {
-        display: block !important;
-        flex: 0 0 auto !important;
-        width: max-content !important;
+        display: inline-block !important;
+        flex: none !important;
+        width: auto !important;
+        max-width: none !important;
         white-space: nowrap !important;
         margin-right: ${GAP}px !important;
+      }
+      aemet-alertas-card .aemet-marquee-measurer {
+        position: absolute !important;
+        left: -100000px !important;
+        top: 0 !important;
+        width: max-content !important;
+        max-width: none !important;
+        white-space: nowrap !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
       }
     `;
     document.head.appendChild(style);
@@ -75,17 +87,40 @@ import "./aemet-alertas-card-core.js";
     title._aemetMarqueeRunning = false;
   };
 
+  const measureText = (title, text) => {
+    let measurer = title._aemetMarqueeMeasurer;
+    if (!measurer) {
+      measurer = document.createElement("span");
+      measurer.className = "aemet-marquee-measurer";
+      title.appendChild(measurer);
+      title._aemetMarqueeMeasurer = measurer;
+    }
+
+    const computed = getComputedStyle(title);
+    measurer.style.font = computed.font;
+    measurer.style.fontFamily = computed.fontFamily;
+    measurer.style.fontSize = computed.fontSize;
+    measurer.style.fontWeight = computed.fontWeight;
+    measurer.style.letterSpacing = computed.letterSpacing;
+    measurer.style.textTransform = computed.textTransform;
+    measurer.textContent = text;
+
+    return Math.ceil(measurer.getBoundingClientRect().width);
+  };
+
   const buildMarquee = (title, text) => {
     stopAnimation(title);
     title.classList.add("aemet-marquee-title");
     title.setAttribute("aria-label", text);
-    title.textContent = "";
+
+    const oldTrack = title.querySelector(".aemet-marquee-track");
+    oldTrack?.remove();
 
     const track = document.createElement("span");
     track.className = "aemet-marquee-track";
 
-    // Three copies guarantee that the next text is already entering from
-    // the right before the current copy leaves the viewport.
+    // Copies are separated by a fixed gap. The animation resets only after
+    // exactly one copy + gap, so the visual sequence is continuous.
     for (let i = 0; i < 3; i++) {
       const copy = document.createElement("span");
       copy.className = "aemet-marquee-copy";
@@ -94,7 +129,7 @@ import "./aemet-alertas-card-core.js";
       track.appendChild(copy);
     }
 
-    title.appendChild(track);
+    title.insertBefore(track, title.firstChild);
     title._aemetMarqueeOriginalText = text;
     title._aemetMarqueeTrack = track;
     title._aemetMarqueeFirstCopy = track.firstElementChild;
@@ -106,9 +141,11 @@ import "./aemet-alertas-card-core.js";
     if (!track || !first || !title.isConnected) return;
 
     const available = title.clientWidth;
-    const textWidth = Math.ceil(first.getBoundingClientRect().width);
+    const textWidth = measureText(title, title._aemetMarqueeOriginalText || first.textContent || "");
 
-    if (textWidth <= available + 2) {
+    // Important: measure independently of the flex track. This prevents the
+    // track's layout from making the text appear to have viewport width.
+    if (available <= 0 || textWidth <= available + 2) {
       stopAnimation(title);
       return;
     }
@@ -123,24 +160,20 @@ import "./aemet-alertas-card-core.js";
     stopAnimation(title);
     title._aemetMarqueeGeometry = signature;
     title._aemetMarqueeCycle = cycle;
-    title._aemetMarqueePosition = 0;
 
-    // A simple timer is intentional here. It avoids CSS animation state,
-    // Web Animations API state and Home Assistant re-render interactions.
-    title._aemetMarqueeTimer = setInterval(() => {
+    const tick = () => {
       if (!title.isConnected || !track.isConnected) {
         stopAnimation(title);
         return;
       }
 
-      title._aemetMarqueePosition += SPEED * (TICK / 1000);
-      if (title._aemetMarqueePosition >= cycle) {
-        title._aemetMarqueePosition -= cycle;
-      }
-
+      title._aemetMarqueePosition = (title._aemetMarqueePosition + SPEED * (TICK / 1000)) % cycle;
       track.style.transform = `translate3d(${-title._aemetMarqueePosition}px,0,0)`;
-    }, TICK);
+    };
 
+    // Start immediately so there is no initial frozen frame.
+    tick();
+    title._aemetMarqueeTimer = setInterval(tick, TICK);
     title._aemetMarqueeRunning = true;
   };
 
@@ -149,16 +182,14 @@ import "./aemet-alertas-card-core.js";
     const parent = title.parentElement;
     if (!parent) return;
 
-    const text = (title._aemetMarqueeOriginalText || title.textContent || "").trim();
+    const existingTrack = title.querySelector(".aemet-marquee-track");
+    const text = (title._aemetMarqueeOriginalText || existingTrack?.firstElementChild?.textContent || title.textContent || "").trim();
     if (!text) return;
 
     parent.style.minWidth = "0";
     parent.style.overflow = "hidden";
 
-    if (
-      title._aemetMarqueeOriginalText !== text ||
-      !title.querySelector(".aemet-marquee-track")
-    ) {
+    if (title._aemetMarqueeOriginalText !== text || !existingTrack) {
       buildMarquee(title, text);
       title._aemetMarqueeGeometry = null;
     }
@@ -175,7 +206,7 @@ import "./aemet-alertas-card-core.js";
         }
       });
       observer.observe(title);
-      if (title.parentElement) observer.observe(title.parentElement);
+      observer.observe(parent);
       title._aemetMarqueeResizeObserver = observer;
     }
   };
