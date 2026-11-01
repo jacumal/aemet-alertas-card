@@ -53,6 +53,22 @@ import "./aemet-alertas-card-core.js";
     document.head.appendChild(style);
   };
 
+  // Home Assistant dashboards commonly place cards inside several nested
+  // shadow roots. A document.querySelector() alone therefore cannot find
+  // the AEMET card reliably.
+  const findAllDeep = (root, selector, results = []) => {
+    if (!root) return results;
+
+    if (root.matches?.(selector)) results.push(root);
+    root.querySelectorAll?.(selector).forEach((el) => results.push(el));
+
+    root.querySelectorAll?.("*").forEach((el) => {
+      if (el.shadowRoot) findAllDeep(el.shadowRoot, selector, results);
+    });
+
+    return results;
+  };
+
   const enhanceTitle = (title) => {
     if (!title || title.dataset.aemetMarqueeReady === "true") return;
 
@@ -92,20 +108,20 @@ import "./aemet-alertas-card-core.js";
 
   const enhanceCard = (card) => {
     installStyles();
-    card.querySelectorAll(".title").forEach(enhanceTitle);
+    findAllDeep(card, ".title").forEach(enhanceTitle);
   };
 
   const boot = () => {
     installStyles();
 
     const scan = () => {
-      document.querySelectorAll("aemet-alertas-card").forEach(enhanceCard);
+      findAllDeep(document, "aemet-alertas-card").forEach(enhanceCard);
     };
 
     scan();
 
     const observer = new MutationObserver(scan);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
 
     setInterval(scan, 1000);
   };
