@@ -1,17 +1,16 @@
 /*
- * AEMET Alertas Card
- * Premium title marquee enhancement.
+ * AEMET Alertas Card — Premium title marquee
  *
- * The core card remains untouched. This file imports it and then enhances
- * the rendered title in place, avoiding duplicate DOM nodes and keeping the
- * effect compatible with Home Assistant's nested shadow roots.
+ * The core card stays responsible for rendering. This module hooks the card's
+ * own render cycle so the title animation is applied after every HA update,
+ * without depending on dashboard shadow-root traversal or duplicate DOM nodes.
  */
 
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const READY = "data-aemet-marquee-ready";
   const STYLE_ID = "aemet-alertas-marquee-style";
+  const PATCHED = "__aemetAlertasMarqueePatched";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -21,11 +20,13 @@ import "./aemet-alertas-card-core.js";
     style.textContent = `
       aemet-alertas-card .title-wrap {
         min-width: 0 !important;
+        max-width: 100% !important;
         overflow: hidden !important;
       }
 
       aemet-alertas-card .title {
         display: block !important;
+        width: max-content !important;
         max-width: none !important;
         overflow: visible !important;
         text-overflow: clip !important;
@@ -36,20 +37,6 @@ import "./aemet-alertas-card-core.js";
     document.head.appendChild(style);
   };
 
-  const findCards = (root, results = []) => {
-    if (!root) return results;
-
-    root.querySelectorAll?.("aemet-alertas-card").forEach((card) => {
-      if (!results.includes(card)) results.push(card);
-    });
-
-    root.querySelectorAll?.("*").forEach((element) => {
-      if (element.shadowRoot) findCards(element.shadowRoot, results);
-    });
-
-    return results;
-  };
-
   const stop = (title) => {
     if (title._aemetMarqueeAnimation) {
       title._aemetMarqueeAnimation.cancel();
@@ -58,15 +45,16 @@ import "./aemet-alertas-card-core.js";
     title.style.removeProperty("--aemet-marquee-distance");
   };
 
-  const enhanceTitle = (title) => {
-    if (!title || title.getAttribute(READY) === "true") return;
+  const animateTitle = (title) => {
+    if (!title) return;
 
     const parent = title.parentElement;
     if (!parent) return;
 
-    title.setAttribute(READY, "true");
+    stop(title);
 
     parent.style.minWidth = "0";
+    parent.style.maxWidth = "100%";
     parent.style.overflow = "hidden";
 
     title.style.display = "block";
@@ -76,101 +64,114 @@ import "./aemet-alertas-card-core.js";
     title.style.overflow = "visible";
     title.style.textOverflow = "clip";
     title.style.transform = "translate3d(0,0,0)";
-    title.style.willChange = "transform";
 
-    const measure = () => {
-      if (!title.isConnected || !parent.isConnected) return;
-
-      stop(title);
-
-      const available = parent.clientWidth;
-      const content = title.scrollWidth;
-      const distance = Math.ceil(content - available);
-
-      if (distance <= 4) {
-        title.style.transform = "translate3d(0,0,0)";
-        return;
-      }
-
-      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-        title.style.transform = "translate3d(0,0,0)";
-        return;
-      }
-
-      const duration = Math.max(12000, Math.min(20000, 11000 + distance * 40));
-      title.style.setProperty("--aemet-marquee-distance", `${distance}px`);
-
-      if (typeof title.animate === "function") {
-        title._aemetMarqueeAnimation = title.animate(
-          [
-            { transform: "translate3d(0,0,0)", offset: 0 },
-            { transform: "translate3d(0,0,0)", offset: 0.12 },
-            { transform: `translate3d(-${distance}px,0,0)`, offset: 0.88 },
-            { transform: `translate3d(-${distance}px,0,0)`, offset: 1 },
-          ],
-          {
-            duration,
-            delay: 1500,
-            iterations: Infinity,
-            direction: "alternate",
-            easing: "ease-in-out",
-            fill: "both",
-          },
-        );
-      } else {
-        title.style.animation = `aemetAlertasMarquee ${duration}ms ease-in-out 1500ms infinite alternate`;
-      }
-    };
-
-    // Home Assistant can finish card layout several frames after rendering.
+    // Force layout after HA has finished inserting the new title.
     requestAnimationFrame(() => {
-      requestAnimationFrame(measure);
-    });
-    setTimeout(measure, 150);
-    setTimeout(measure, 600);
-    setTimeout(measure, 1500);
+      requestAnimationFrame(() => {
+        if (!title.isConnected || !parent.isConnected) return;
 
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => measure());
-      observer.observe(parent);
-      observer.observe(title);
-      title._aemetMarqueeResizeObserver = observer;
-    }
+        const available = parent.clientWidth;
+        const content = title.scrollWidth;
+        const distance = Math.ceil(content - available);
+
+        if (distance <= 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+          title.style.transform = "translate3d(0,0,0)";
+          return;
+        }
+
+        const duration = Math.max(14000, Math.min(22000, 13000 + distance * 45));
+        title.style.setProperty("--aemet-marquee-distance", `${distance}px`);
+
+        if (typeof title.animate === "function") {
+          title._aemetMarqueeAnimation = title.animate(
+            [
+              { transform: "translate3d(0,0,0)", offset: 0 },
+              { transform: "translate3d(0,0,0)", offset: 0.14 },
+              { transform: `translate3d(-${distance}px,0,0)`, offset: 0.86 },
+              { transform: `translate3d(-${distance}px,0,0)`, offset: 1 },
+            ],
+            {
+              duration,
+              delay: 1200,
+              iterations: Infinity,
+              direction: "alternate",
+              easing: "ease-in-out",
+              fill: "both",
+            },
+          );
+        }
+      });
+    });
   };
 
   const enhanceCard = (card) => {
-    card.querySelectorAll(".title").forEach(enhanceTitle);
-  };
+    if (!card || card[PATCHED]) return;
+    if (typeof card._render !== "function") return;
 
-  const scan = () => {
-    installStyles();
-    findCards(document).forEach(enhanceCard);
-  };
+    const originalRender = card._render;
 
-  const boot = () => {
-    scan();
+    card._render = function patchedRender(...args) {
+      const result = originalRender.apply(this, args);
 
-    const observer = new MutationObserver(scan);
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
+      // _render() replaces innerHTML, so the title must be enhanced only
+      // after the new DOM exists. The timeout also covers HA layout timing.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          installStyles();
+          const title = this.querySelector(".title");
+          if (title) animateTitle(title);
+        });
+      });
+
+      return result;
+    };
+
+    card[PATCHED] = true;
+
+    // The card may already have rendered before this module patched it.
+    requestAnimationFrame(() => {
+      installStyles();
+      const title = card.querySelector(".title");
+      if (title) animateTitle(title);
     });
-
-    // A small safety net for cards that Home Assistant re-renders without
-    // producing a mutation visible from the document root.
-    window.setInterval(scan, 1500);
   };
 
-  // The core module is already imported above, so the custom element should
-  // be registered by the time this module continues. We also retry after the
-  // document is ready to cover HA dashboard startup timing.
-  if (customElements.get("aemet-alertas-card")) {
-    boot();
-  } else {
-    customElements.whenDefined("aemet-alertas-card").then(boot);
-  }
+  const hookPrototype = () => {
+    installStyles();
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", scan, { once: true });
+    const Constructor = customElements.get("aemet-alertas-card");
+    if (!Constructor || !Constructor.prototype) return;
+
+    const proto = Constructor.prototype;
+    if (proto[PATCHED]) return;
+
+    const originalRender = proto._render;
+    if (typeof originalRender !== "function") return;
+
+    proto._render = function patchedRender(...args) {
+      const result = originalRender.apply(this, args);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          installStyles();
+          const title = this.querySelector(".title");
+          if (title) animateTitle(title);
+        });
+      });
+
+      return result;
+    };
+
+    proto[PATCHED] = true;
+
+    // If the card instance already exists, its next HA update will use the
+    // patched render. We also enhance any existing instance immediately.
+    document.querySelectorAll("aemet-alertas-card").forEach(enhanceCard);
+  };
+
+  if (customElements.get("aemet-alertas-card")) {
+    hookPrototype();
+  } else {
+    customElements.whenDefined("aemet-alertas-card").then(hookPrototype);
   }
 })();
