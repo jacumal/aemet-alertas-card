@@ -1,6 +1,6 @@
 /*
  * AEMET Alertas Card — Premium Animated Edition
- * Loader + stable title marquee.
+ * Loader + stable seamless title marquee.
  */
 
 import "./aemet-alertas-card-core.js";
@@ -51,7 +51,6 @@ import "./aemet-alertas-card-core.js";
     const parent = title.parentElement;
     if (!parent) return;
 
-    // The core card may rerender the title. Keep the original text only.
     const text = title._aemetMarqueeOriginalText || title.textContent || "";
     if (!text.trim()) return;
 
@@ -69,10 +68,8 @@ import "./aemet-alertas-card-core.js";
       title._aemetMarqueeAnimation?.cancel();
       title._aemetMarqueeAnimation = null;
       title._aemetMarqueeOriginalText = text;
-      title.textContent = text;
     }
 
-    // Measure the real text width against the visible title area.
     const available = parent.clientWidth;
     const content = title.scrollWidth;
     const distance = Math.ceil(content - available);
@@ -84,15 +81,12 @@ import "./aemet-alertas-card-core.js";
       return;
     }
 
-    // Do not recreate the animation on every Home Assistant update.
-    if (title._aemetMarqueeAnimation && title._aemetMarqueeDistance === distance) return;
+    if (title._aemetMarqueeAnimation) return;
 
-    title._aemetMarqueeAnimation?.cancel();
-
-    // One-way loop: move to the end, then instantly restart at the beginning.
-    // There is no alternate direction and no pause between iterations.
-    const duration = Math.max(6500, Math.min(11000, 5200 + distance * 16));
-    title._aemetMarqueeDistance = distance;
+    // One-way continuous loop. At the end of each iteration Web Animations
+    // jumps instantly back to 0 and starts the next pass; there is no reverse
+    // direction and no end pause.
+    const duration = Math.max(6500, Math.min(11000, 5000 + distance * 20));
 
     title._aemetMarqueeAnimation = title.animate(
       [
@@ -101,11 +95,11 @@ import "./aemet-alertas-card-core.js";
       ],
       {
         duration,
-        delay: 900,
+        delay: 500,
         iterations: Infinity,
         direction: "normal",
         easing: "linear",
-        fill: "both",
+        fill: "none",
       },
     );
   };
