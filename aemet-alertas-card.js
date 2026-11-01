@@ -6,60 +6,62 @@
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v14";
+  const CARD_STYLE_ID = "aemet-alertas-marquee-style-v15";
   const GAP = 42;
   const SPEED = 34; // px/s
 
-  const installStyles = () => {
-    if (document.getElementById(STYLE_ID)) return;
+  const CARD_CSS = `
+    @keyframes aemet-alertas-marquee-scroll-v15 {
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(var(--aemet-marquee-distance), 0, 0); }
+    }
+
+    .title-wrap {
+      min-width: 0 !important;
+      max-width: 100% !important;
+      overflow: hidden !important;
+    }
+
+    .title.aemet-marquee-title {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: hidden !important;
+      text-overflow: clip !important;
+      white-space: nowrap !important;
+      position: relative !important;
+    }
+
+    .aemet-marquee-track {
+      display: inline-flex !important;
+      width: max-content !important;
+      max-width: none !important;
+      flex: none !important;
+      white-space: nowrap !important;
+      will-change: transform;
+      animation-name: aemet-alertas-marquee-scroll-v15;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      animation-play-state: running;
+    }
+
+    .aemet-marquee-copy {
+      display: inline-block !important;
+      flex: none !important;
+      width: auto !important;
+      max-width: none !important;
+      white-space: nowrap !important;
+      margin-right: ${GAP}px !important;
+    }
+  `;
+
+  const installCardStyles = (card) => {
+    if (!card || card.querySelector(`style[data-${CARD_STYLE_ID}]`)) return;
 
     const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `
-      @keyframes aemet-alertas-marquee-scroll-v14 {
-        from { transform: translate3d(0, 0, 0); }
-        to { transform: translate3d(var(--aemet-marquee-distance), 0, 0); }
-      }
-
-      aemet-alertas-card .title-wrap {
-        min-width: 0 !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
-      }
-
-      aemet-alertas-card .title.aemet-marquee-title {
-        display: block !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        overflow: hidden !important;
-        text-overflow: clip !important;
-        white-space: nowrap !important;
-        position: relative !important;
-      }
-
-      aemet-alertas-card .aemet-marquee-track {
-        display: inline-flex !important;
-        width: max-content !important;
-        max-width: none !important;
-        flex: none !important;
-        white-space: nowrap !important;
-        will-change: transform;
-        animation-name: aemet-alertas-marquee-scroll-v14;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-        animation-play-state: running;
-      }
-
-      aemet-alertas-card .aemet-marquee-copy {
-        display: inline-block !important;
-        flex: none !important;
-        width: auto !important;
-        max-width: none !important;
-        white-space: nowrap !important;
-        margin-right: ${GAP}px !important;
-      }
-    `;
-    document.head.appendChild(style);
+    style.dataset[CARD_STYLE_ID] = "true";
+    style.textContent = CARD_CSS;
+    card.prepend(style);
   };
 
   const stopAnimation = (title) => {
@@ -115,7 +117,7 @@ import "./aemet-alertas-card-core.js";
     title._aemetMarqueeCycle = cycle;
     track.style.setProperty("--aemet-marquee-distance", `-${cycle}px`);
     track.style.animationDuration = `${duration}s`;
-    track.style.animationName = "aemet-alertas-marquee-scroll-v14";
+    track.style.animationName = "aemet-alertas-marquee-scroll-v15";
     track.style.animationTimingFunction = "linear";
     track.style.animationIterationCount = "infinite";
     track.style.animationPlayState = "running";
@@ -150,12 +152,13 @@ import "./aemet-alertas-card-core.js";
 
   const enhanceCard = (card) => {
     if (!card?.isConnected) return;
+    installCardStyles(card);
     card.querySelectorAll(".title").forEach(enhanceTitle);
   };
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatch) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV15) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
@@ -165,11 +168,10 @@ import "./aemet-alertas-card-core.js";
       requestAnimationFrame(() => enhanceCard(this));
     };
 
-    Card.prototype._aemetMarqueeRenderPatch = true;
+    Card.prototype._aemetMarqueeRenderPatchV15 = true;
   };
 
   const boot = () => {
-    installStyles();
     patchRender();
 
     const Card = customElements.get("aemet-alertas-card");
