@@ -6,86 +6,62 @@
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const CARD_STYLE_ID = "aemet-alertas-marquee-style-v15";
   const GAP = 42;
   const SPEED = 34; // px/s
 
-  const CARD_CSS = `
-    @keyframes aemet-alertas-marquee-scroll-v15 {
-      from { transform: translate3d(0, 0, 0); }
-      to { transform: translate3d(var(--aemet-marquee-distance), 0, 0); }
-    }
-
-    .title-wrap {
-      min-width: 0 !important;
-      max-width: 100% !important;
-      overflow: hidden !important;
-    }
-
-    .title.aemet-marquee-title {
-      display: block !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      overflow: hidden !important;
-      text-overflow: clip !important;
-      white-space: nowrap !important;
-      position: relative !important;
-    }
-
-    .aemet-marquee-track {
-      display: inline-flex !important;
-      width: max-content !important;
-      max-width: none !important;
-      flex: none !important;
-      white-space: nowrap !important;
-      will-change: transform;
-      animation-name: aemet-alertas-marquee-scroll-v15;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-      animation-play-state: running;
-    }
-
-    .aemet-marquee-copy {
-      display: inline-block !important;
-      flex: none !important;
-      width: auto !important;
-      max-width: none !important;
-      white-space: nowrap !important;
-      margin-right: ${GAP}px !important;
-    }
-  `;
-
-  const installCardStyles = (card) => {
-    if (!card || card.querySelector(`style[data-${CARD_STYLE_ID}]`)) return;
-
-    const style = document.createElement("style");
-    style.dataset[CARD_STYLE_ID] = "true";
-    style.textContent = CARD_CSS;
-    card.prepend(style);
-  };
-
   const stopAnimation = (title) => {
+    const animation = title._aemetMarqueeAnimation;
+    if (animation) {
+      animation.cancel();
+      title._aemetMarqueeAnimation = null;
+    }
+
     const track = title._aemetMarqueeTrack;
-    if (!track) return;
-    track.style.animation = "none";
-    track.style.transform = "translate3d(0,0,0)";
+    if (track) track.style.transform = "translate3d(0,0,0)";
     title._aemetMarqueeRunning = false;
   };
 
   const buildMarquee = (title, text) => {
     stopAnimation(title);
+
     title.classList.add("aemet-marquee-title");
     title.setAttribute("aria-label", text);
+    title.style.display = "block";
+    title.style.width = "100%";
+    title.style.maxWidth = "100%";
+    title.style.overflow = "hidden";
+    title.style.textOverflow = "clip";
+    title.style.whiteSpace = "nowrap";
+    title.style.position = "relative";
+
+    const parent = title.parentElement;
+    if (parent) {
+      parent.style.minWidth = "0";
+      parent.style.maxWidth = "100%";
+      parent.style.overflow = "hidden";
+    }
 
     title.querySelector(".aemet-marquee-track")?.remove();
 
     const track = document.createElement("span");
     track.className = "aemet-marquee-track";
+    track.style.display = "inline-flex";
+    track.style.width = "max-content";
+    track.style.maxWidth = "none";
+    track.style.flex = "none";
+    track.style.whiteSpace = "nowrap";
+    track.style.willChange = "transform";
 
     for (let i = 0; i < 2; i++) {
       const copy = document.createElement("span");
       copy.className = "aemet-marquee-copy";
       copy.textContent = text;
+      copy.style.display = "inline-block";
+      copy.style.width = "auto";
+      copy.style.maxWidth = "none";
+      copy.style.flex = "none";
+      copy.style.whiteSpace = "nowrap";
+      copy.style.marginRight = `${GAP}px`;
       if (i > 0) copy.setAttribute("aria-hidden", "true");
       track.appendChild(copy);
     }
@@ -111,27 +87,35 @@ import "./aemet-alertas-card-core.js";
     }
 
     const cycle = textWidth + GAP;
-    const duration = Math.max(3, cycle / SPEED);
+    const duration = Math.max(3000, (cycle / SPEED) * 1000);
 
     stopAnimation(title);
+
+    // Web Animations API: no CSS @keyframes, no global styles, no reverse motion.
+    // The second copy is positioned exactly one cycle behind the first, so when
+    // copy #1 leaves on the left, copy #2 is already entering from the right.
+    if (typeof track.animate !== "function") return;
+
+    const animation = track.animate(
+      [
+        { transform: "translate3d(0, 0, 0)" },
+        { transform: `translate3d(-${cycle}px, 0, 0)` },
+      ],
+      {
+        duration,
+        iterations: Infinity,
+        easing: "linear",
+        fill: "none",
+      }
+    );
+
+    title._aemetMarqueeAnimation = animation;
     title._aemetMarqueeCycle = cycle;
-    track.style.setProperty("--aemet-marquee-distance", `-${cycle}px`);
-    track.style.animationDuration = `${duration}s`;
-    track.style.animationName = "aemet-alertas-marquee-scroll-v15";
-    track.style.animationTimingFunction = "linear";
-    track.style.animationIterationCount = "infinite";
-    track.style.animationPlayState = "running";
-    track.style.transform = "translate3d(0,0,0)";
     title._aemetMarqueeRunning = true;
   };
 
   const enhanceTitle = (title) => {
     if (!title?.isConnected) return;
-
-    const parent = title.parentElement;
-    if (!parent) return;
-    parent.style.minWidth = "0";
-    parent.style.overflow = "hidden";
 
     const existingTrack = title.querySelector(".aemet-marquee-track");
     const text = (
@@ -147,18 +131,20 @@ import "./aemet-alertas-card-core.js";
       buildMarquee(title, text);
     }
 
-    requestAnimationFrame(() => startAnimation(title));
+    // Wait for the browser to complete layout before measuring text width.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => startAnimation(title));
+    });
   };
 
   const enhanceCard = (card) => {
     if (!card?.isConnected) return;
-    installCardStyles(card);
     card.querySelectorAll(".title").forEach(enhanceTitle);
   };
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV15) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV16) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
@@ -168,7 +154,7 @@ import "./aemet-alertas-card-core.js";
       requestAnimationFrame(() => enhanceCard(this));
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV15 = true;
+    Card.prototype._aemetMarqueeRenderPatchV16 = true;
   };
 
   const boot = () => {
