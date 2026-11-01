@@ -247,15 +247,23 @@ import "./aemet-alertas-card-core.js";
 
     if (!text) return;
 
-    if (title._aemetMarqueeOriginalText !== text || !existingTrack) {
+    const textChanged = title._aemetMarqueeOriginalText !== text;
+    const needsBuild = textChanged || !existingTrack;
+
+    if (needsBuild) {
       buildMarquee(title, text);
-    } else {
-      title._aemetMarqueeNextText = text;
+      requestAnimationFrame(() => startAnimation(title, preservedProgress));
+      return;
     }
 
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => startAnimation(title, preservedProgress));
-    });
+    title._aemetMarqueeNextText = text;
+
+    // IMPORTANT: the live animation must not be restarted on every HA render.
+    // Restarting it, even at the same nominal progress, is what caused the tiny
+    // reverse/forward movements and occasional flashes seen during updates.
+    if (title._aemetMarqueeAnimation && title._aemetMarqueeRunning) return;
+
+    startAnimation(title, preservedProgress);
   };
 
   const enhanceCard = (card, preservedProgress = 0) => {
@@ -271,7 +279,7 @@ import "./aemet-alertas-card-core.js";
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV20) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV21) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
@@ -287,7 +295,7 @@ import "./aemet-alertas-card-core.js";
       enhanceCard(this, this._aemetMarqueeProgress || 0);
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV20 = true;
+    Card.prototype._aemetMarqueeRenderPatchV21 = true;
   };
 
   const boot = () => {
