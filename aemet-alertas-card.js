@@ -1,12 +1,15 @@
 /*
  * AEMET Alertas Card — Premium Animated Edition
- * Loader + truly seamless one-way title marquee.
+ * Loader + robust one-way title marquee.
  */
 
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v10";
+  const STYLE_ID = "aemet-alertas-marquee-style-v11";
+  const GAP = 42;
+  const SPEED = 34; // px/s
+  const TICK = 16;
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -29,8 +32,9 @@ import "./aemet-alertas-card-core.js";
         display: flex !important;
         width: max-content !important;
         max-width: none !important;
-        flex: none !important;
+        flex: 0 0 auto !important;
         white-space: nowrap !important;
+        transform: translate3d(0,0,0);
         will-change: transform;
       }
       aemet-alertas-card .aemet-marquee-copy {
@@ -38,7 +42,7 @@ import "./aemet-alertas-card-core.js";
         flex: 0 0 auto !important;
         width: max-content !important;
         white-space: nowrap !important;
-        margin-right: 42px !important;
+        margin-right: ${GAP}px !important;
       }
     `;
     document.head.appendChild(style);
@@ -60,10 +64,11 @@ import "./aemet-alertas-card-core.js";
   };
 
   const stopAnimation = (title) => {
-    if (title._aemetMarqueeAnimation) {
-      title._aemetMarqueeAnimation.cancel();
-      title._aemetMarqueeAnimation = null;
+    if (title._aemetMarqueeTimer) {
+      clearInterval(title._aemetMarqueeTimer);
+      title._aemetMarqueeTimer = null;
     }
+    title._aemetMarqueePosition = 0;
     if (title._aemetMarqueeTrack) {
       title._aemetMarqueeTrack.style.transform = "translate3d(0,0,0)";
     }
@@ -79,21 +84,20 @@ import "./aemet-alertas-card-core.js";
     const track = document.createElement("span");
     track.className = "aemet-marquee-track";
 
-    const first = document.createElement("span");
-    first.className = "aemet-marquee-copy";
-    first.textContent = text;
+    // Three copies guarantee that the next text is already entering from
+    // the right before the current copy leaves the viewport.
+    for (let i = 0; i < 3; i++) {
+      const copy = document.createElement("span");
+      copy.className = "aemet-marquee-copy";
+      copy.textContent = text;
+      if (i > 0) copy.setAttribute("aria-hidden", "true");
+      track.appendChild(copy);
+    }
 
-    const second = document.createElement("span");
-    second.className = "aemet-marquee-copy";
-    second.textContent = text;
-    second.setAttribute("aria-hidden", "true");
-
-    track.append(first, second);
     title.appendChild(track);
-
     title._aemetMarqueeOriginalText = text;
     title._aemetMarqueeTrack = track;
-    title._aemetMarqueeFirstCopy = first;
+    title._aemetMarqueeFirstCopy = track.firstElementChild;
   };
 
   const startAnimation = (title) => {
@@ -102,49 +106,41 @@ import "./aemet-alertas-card-core.js";
     if (!track || !first || !title.isConnected) return;
 
     const available = title.clientWidth;
-    const firstRect = first.getBoundingClientRect();
-    const distance = Math.ceil(firstRect.width);
+    const textWidth = Math.ceil(first.getBoundingClientRect().width);
 
-    if (distance <= available + 2) {
+    if (textWidth <= available + 2) {
       stopAnimation(title);
       return;
     }
 
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      stopAnimation(title);
+    const cycle = textWidth + GAP;
+    const signature = `${textWidth}:${available}`;
+
+    if (title._aemetMarqueeGeometry === signature && title._aemetMarqueeRunning) {
       return;
     }
-
-    const signature = `${distance}:${available}`;
-    if (title._aemetMarqueeGeometry === signature && title._aemetMarqueeRunning) return;
 
     stopAnimation(title);
     title._aemetMarqueeGeometry = signature;
+    title._aemetMarqueeCycle = cycle;
+    title._aemetMarqueePosition = 0;
 
-    // The second copy begins exactly where the first copy ends.
-    // Animate by precisely one copy width. Web Animations API avoids
-    // CSS keyframe/reflow issues and guarantees one-way infinite motion.
-    const speed = 34;
-    const duration = Math.max(2500, (distance / speed) * 1000);
-
-    track.style.transform = "translate3d(0,0,0)";
-
-    if (typeof track.animate !== "function") return;
-
-    const animation = track.animate(
-      [
-        { transform: "translate3d(0,0,0)" },
-        { transform: `translate3d(${-distance}px,0,0)` },
-      ],
-      {
-        duration,
-        iterations: Infinity,
-        easing: "linear",
-        fill: "both",
+    // A simple timer is intentional here. It avoids CSS animation state,
+    // Web Animations API state and Home Assistant re-render interactions.
+    title._aemetMarqueeTimer = setInterval(() => {
+      if (!title.isConnected || !track.isConnected) {
+        stopAnimation(title);
+        return;
       }
-    );
 
-    title._aemetMarqueeAnimation = animation;
+      title._aemetMarqueePosition += SPEED * (TICK / 1000);
+      if (title._aemetMarqueePosition >= cycle) {
+        title._aemetMarqueePosition -= cycle;
+      }
+
+      track.style.transform = `translate3d(${-title._aemetMarqueePosition}px,0,0)`;
+    }, TICK);
+
     title._aemetMarqueeRunning = true;
   };
 
