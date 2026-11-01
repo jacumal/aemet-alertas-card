@@ -9,20 +9,26 @@ import "./aemet-alertas-card-core.js";
   const GAP = 42;
   const SPEED = 34; // px/s
 
-  const stopAnimation = (title) => {
-    const animation = title._aemetMarqueeAnimation;
-    if (animation) {
-      animation.cancel();
+  const cancelAnimation = (title) => {
+    const animation = title?._aemetMarqueeAnimation;
+    if (animation) animation.cancel();
+    if (title) {
       title._aemetMarqueeAnimation = null;
+      title._aemetMarqueeRunning = false;
     }
+  };
 
-    const track = title._aemetMarqueeTrack;
-    if (track) track.style.transform = "translate3d(0,0,0)";
-    title._aemetMarqueeRunning = false;
+  const getAnimationProgress = (title) => {
+    const animation = title?._aemetMarqueeAnimation;
+    const duration = title?._aemetMarqueeDuration;
+    if (!animation || !duration || typeof animation.currentTime !== "number") return null;
+
+    const time = animation.currentTime % duration;
+    return (time < 0 ? time + duration : time) / duration;
   };
 
   const buildMarquee = (title, text) => {
-    stopAnimation(title);
+    cancelAnimation(title);
 
     title.classList.add("aemet-marquee-title");
     title.setAttribute("aria-label", text);
@@ -73,7 +79,7 @@ import "./aemet-alertas-card-core.js";
     title._aemetMarqueeFirstCopy = track.firstElementChild;
   };
 
-  const startAnimation = (title, force = false) => {
+  const startAnimation = (title, preservedProgress = 0) => {
     const track = title._aemetMarqueeTrack;
     const first = title._aemetMarqueeFirstCopy;
     if (!track || !first || !title.isConnected) return;
@@ -82,21 +88,15 @@ import "./aemet-alertas-card-core.js";
     const textWidth = first.getBoundingClientRect().width;
 
     if (available <= 0 || textWidth <= available + 2) {
-      stopAnimation(title);
+      cancelAnimation(title);
+      track.style.transform = "translate3d(0,0,0)";
       return;
     }
 
     const cycle = textWidth + GAP;
     const duration = Math.max(3000, (cycle / SPEED) * 1000);
 
-    // IMPORTANT: Home Assistant can call _render() repeatedly. Never restart
-    // an already-running animation just because the card rendered again.
-    if (!force && title._aemetMarqueeRunning && title._aemetMarqueeAnimation) {
-      const previousCycle = title._aemetMarqueeCycle;
-      if (Math.abs(previousCycle - cycle) < 2) return;
-    }
-
-    stopAnimation(title);
+    cancelAnimation(title);
 
     if (typeof track.animate !== "function") return;
 
@@ -113,28 +113,17 @@ import "./aemet-alertas-card-core.js";
       }
     );
 
+    // The card's core rebuilds innerHTML on every HA state update. Preserve
+    // the exact phase of the previous marquee instead of restarting at 0.
+    animation.currentTime = Math.max(0, Math.min(0.999999, preservedProgress)) * duration;
+
     title._aemetMarqueeAnimation = animation;
     title._aemetMarqueeCycle = cycle;
+    title._aemetMarqueeDuration = duration;
     title._aemetMarqueeRunning = true;
   };
 
-  const observeResize = (title) => {
-    if (title._aemetMarqueeResizeObserver) return;
-    if (typeof ResizeObserver === "undefined") return;
-
-    title._aemetMarqueeResizeObserver = new ResizeObserver(() => {
-      // Only restart when the actual available width changes. Normal HA
-      // state updates must leave the current animation position untouched.
-      const width = title.clientWidth;
-      if (Math.abs((title._aemetMarqueeLastWidth || 0) - width) < 2) return;
-      title._aemetMarqueeLastWidth = width;
-      requestAnimationFrame(() => startAnimation(title, true));
-    });
-
-    title._aemetMarqueeResizeObserver.observe(title);
-  };
-
-  const enhanceTitle = (title) => {
+  const enhanceTitle = (title, preservedProgress = 0) => {
     if (!title?.isConnected) return;
 
     const existingTrack = title.querySelector(".aemet-marquee-track");
@@ -151,31 +140,40 @@ import "./aemet-alertas-card-core.js";
       buildMarquee(title, text);
     }
 
-    observeResize(title);
-
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => startAnimation(title));
+      requestAnimationFrame(() => startAnimation(title, preservedProgress));
     });
   };
 
-  const enhanceCard = (card) => {
+  const enhanceCard = (card, preservedProgress = 0) => {
     if (!card?.isConnected) return;
-    card.querySelectorAll(".title").forEach(enhanceTitle);
+    card.querySelectorAll(".title").forEach((title) => enhanceTitle(title, preservedProgress));
+  };
+
+  const captureProgress = (card) => {
+    const title = card?.querySelector?.(".title");
+    return getAnimationProgress(title) ?? card?._aemetMarqueeProgress ?? 0;
   };
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV17) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV18) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
 
     Card.prototype._render = function (...args) {
+      const progress = captureProgress(this);
+      this._aemetMarqueeProgress = progress;
+
       originalRender.apply(this, args);
-      requestAnimationFrame(() => enhanceCard(this));
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => enhanceCard(this, this._aemetMarqueeProgress || 0));
+      });
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV17 = true;
+    Card.prototype._aemetMarqueeRenderPatchV18 = true;
   };
 
   const boot = () => {
@@ -183,7 +181,9 @@ import "./aemet-alertas-card-core.js";
 
     const Card = customElements.get("aemet-alertas-card");
     if (Card) {
-      document.querySelectorAll("aemet-alertas-card").forEach(enhanceCard);
+      document.querySelectorAll("aemet-alertas-card").forEach((card) => {
+        enhanceCard(card, captureProgress(card));
+      });
     }
   };
 
