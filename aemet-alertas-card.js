@@ -19,8 +19,6 @@ import "./aemet-alertas-card-core.js";
     const track = title._aemetMarqueeTrack;
     if (track) track.style.transform = "translate3d(0,0,0)";
     title._aemetMarqueeRunning = false;
-    title._aemetMarqueeCycle = null;
-    title._aemetMarqueeAvailable = null;
   };
 
   const buildMarquee = (title, text) => {
@@ -75,7 +73,7 @@ import "./aemet-alertas-card-core.js";
     title._aemetMarqueeFirstCopy = track.firstElementChild;
   };
 
-  const startAnimation = (title) => {
+  const startAnimation = (title, force = false) => {
     const track = title._aemetMarqueeTrack;
     const first = title._aemetMarqueeFirstCopy;
     if (!track || !first || !title.isConnected) return;
@@ -91,27 +89,15 @@ import "./aemet-alertas-card-core.js";
     const cycle = textWidth + GAP;
     const duration = Math.max(3000, (cycle / SPEED) * 1000);
 
-    // IMPORTANT: Home Assistant can call the card's _render() repeatedly.
-    // Do not restart an already-running marquee on every render: doing so
-    // produces visible jumps and prevents the complete title from ever being
-    // shown. Only restart when the geometry has actually changed.
-    const currentAnimation = title._aemetMarqueeAnimation;
-    if (
-      title._aemetMarqueeRunning &&
-      currentAnimation &&
-      currentAnimation.playState !== "idle" &&
-      title._aemetMarqueeCycle !== null &&
-      Math.abs(title._aemetMarqueeCycle - cycle) < 1 &&
-      title._aemetMarqueeAvailable === available
-    ) {
-      return;
+    // IMPORTANT: Home Assistant can call _render() repeatedly. Never restart
+    // an already-running animation just because the card rendered again.
+    if (!force && title._aemetMarqueeRunning && title._aemetMarqueeAnimation) {
+      const previousCycle = title._aemetMarqueeCycle;
+      if (Math.abs(previousCycle - cycle) < 2) return;
     }
 
     stopAnimation(title);
 
-    // Web Animations API: no CSS @keyframes, no global styles, no reverse motion.
-    // The second copy is positioned exactly one cycle behind the first, so when
-    // copy #1 leaves on the left, copy #2 is already entering from the right.
     if (typeof track.animate !== "function") return;
 
     const animation = track.animate(
@@ -129,8 +115,23 @@ import "./aemet-alertas-card-core.js";
 
     title._aemetMarqueeAnimation = animation;
     title._aemetMarqueeCycle = cycle;
-    title._aemetMarqueeAvailable = available;
     title._aemetMarqueeRunning = true;
+  };
+
+  const observeResize = (title) => {
+    if (title._aemetMarqueeResizeObserver) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    title._aemetMarqueeResizeObserver = new ResizeObserver(() => {
+      // Only restart when the actual available width changes. Normal HA
+      // state updates must leave the current animation position untouched.
+      const width = title.clientWidth;
+      if (Math.abs((title._aemetMarqueeLastWidth || 0) - width) < 2) return;
+      title._aemetMarqueeLastWidth = width;
+      requestAnimationFrame(() => startAnimation(title, true));
+    });
+
+    title._aemetMarqueeResizeObserver.observe(title);
   };
 
   const enhanceTitle = (title) => {
@@ -150,7 +151,8 @@ import "./aemet-alertas-card-core.js";
       buildMarquee(title, text);
     }
 
-    // Wait for the browser to complete layout before measuring text width.
+    observeResize(title);
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => startAnimation(title));
     });
