@@ -6,7 +6,7 @@
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v6";
+  const STYLE_ID = "aemet-alertas-marquee-style-v7";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -25,7 +25,6 @@ import "./aemet-alertas-card-core.js";
         overflow: hidden !important;
         text-overflow: clip !important;
         white-space: nowrap !important;
-        will-change: auto;
       }
 
       aemet-alertas-card .aemet-marquee-track {
@@ -41,22 +40,6 @@ import "./aemet-alertas-card-core.js";
         flex: 0 0 auto !important;
         white-space: nowrap !important;
         padding-right: 64px;
-      }
-
-      @keyframes aemetAlertasSeamlessMarquee {
-        from {
-          transform: translate3d(0, 0, 0);
-        }
-        to {
-          transform: translate3d(calc(-1 * var(--aemet-marquee-distance)), 0, 0);
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        aemet-alertas-card .aemet-marquee-track {
-          animation: none !important;
-          transform: translate3d(0, 0, 0) !important;
-        }
       }
     `;
     document.head.appendChild(style);
@@ -77,16 +60,17 @@ import "./aemet-alertas-card-core.js";
     return cards;
   };
 
-  const stopMarquee = (title) => {
-    const track = title.querySelector(".aemet-marquee-track");
-    if (track) track.style.animation = "none";
-    title._aemetMarqueeResizeObserver?.disconnect();
-    title._aemetMarqueeResizeObserver = null;
+  const stopAnimation = (title) => {
+    if (title._aemetMarqueeFrame) {
+      cancelAnimationFrame(title._aemetMarqueeFrame);
+      title._aemetMarqueeFrame = null;
+    }
+    title._aemetMarqueeRunning = false;
+    title._aemetMarqueeStart = null;
   };
 
   const buildMarquee = (title, text) => {
-    stopMarquee(title);
-
+    stopAnimation(title);
     title.classList.add("aemet-marquee-title");
     title.setAttribute("aria-label", text);
     title.textContent = "";
@@ -111,64 +95,71 @@ import "./aemet-alertas-card-core.js";
     title._aemetMarqueeFirstCopy = first;
   };
 
-  const measureAndAnimate = (title) => {
-    if (!title?.isConnected) return;
-
-    const parent = title.parentElement;
-    if (!parent) return;
-
-    const text = title._aemetMarqueeOriginalText || title.textContent || "";
-    if (!text.trim()) return;
-
-    parent.style.minWidth = "0";
-    parent.style.overflow = "hidden";
-
-    const existingTrack = title.querySelector(".aemet-marquee-track");
-    if (!existingTrack || title._aemetMarqueeOriginalText !== text) {
-      buildMarquee(title, text);
-    }
-
+  const startAnimation = (title) => {
     const track = title._aemetMarqueeTrack;
     const first = title._aemetMarqueeFirstCopy;
     if (!track || !first) return;
 
     const available = title.clientWidth;
-    const firstWidth = first.getBoundingClientRect().width;
-    const distance = Math.ceil(firstWidth);
+    const distance = Math.ceil(first.getBoundingClientRect().width);
 
     if (distance <= available + 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      track.style.animation = "none";
+      stopAnimation(title);
       track.style.transform = "translate3d(0,0,0)";
       return;
     }
 
-    // The track contains two identical copies. We move exactly one copy-width.
-    // When the animation restarts, the second copy is in the exact same visual
-    // position as the first one was, so the reset is invisible: true seamless loop.
-    track.style.setProperty("--aemet-marquee-distance", `${distance}px`);
+    // Pixels per second. Slow enough to feel premium, but with no pause.
+    const speed = 38;
+    const duration = distance / speed;
 
-    const duration = Math.max(7500, Math.min(12500, 6000 + distance * 18));
-    track.style.animation = `aemetAlertasSeamlessMarquee ${duration}ms linear infinite`;
-    track.style.transform = "translate3d(0,0,0)";
+    stopAnimation(title);
+    title._aemetMarqueeRunning = true;
+
+    const frame = (now) => {
+      if (!title.isConnected || !track.isConnected) {
+        stopAnimation(title);
+        return;
+      }
+
+      if (!title._aemetMarqueeStart) title._aemetMarqueeStart = now;
+
+      const elapsed = (now - title._aemetMarqueeStart) / 1000;
+      const travelled = (elapsed * speed) % distance;
+
+      // Move continuously to the left. When the first copy has completely
+      // left the viewport, the second identical copy is in exactly the same
+      // position. The modulo reset is therefore visually invisible.
+      track.style.transform = `translate3d(${-travelled}px,0,0)`;
+
+      title._aemetMarqueeFrame = requestAnimationFrame(frame);
+    };
+
+    title._aemetMarqueeFrame = requestAnimationFrame(frame);
   };
 
   const enhanceTitle = (title) => {
     if (!title?.isConnected) return;
 
-    const rawText = title._aemetMarqueeOriginalText || title.textContent || "";
-    const text = rawText.trim();
+    const parent = title.parentElement;
+    if (!parent) return;
+
+    const text = (title._aemetMarqueeOriginalText || title.textContent || "").trim();
     if (!text) return;
+
+    parent.style.minWidth = "0";
+    parent.style.overflow = "hidden";
 
     if (title._aemetMarqueeOriginalText !== text || !title.querySelector(".aemet-marquee-track")) {
       buildMarquee(title, text);
     }
 
-    requestAnimationFrame(() => measureAndAnimate(title));
+    requestAnimationFrame(() => startAnimation(title));
 
     title._aemetMarqueeResizeObserver?.disconnect();
     if (typeof ResizeObserver !== "undefined") {
       const observer = new ResizeObserver(() => {
-        requestAnimationFrame(() => measureAndAnimate(title));
+        requestAnimationFrame(() => startAnimation(title));
       });
       observer.observe(title);
       if (title.parentElement) observer.observe(title.parentElement);
