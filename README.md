@@ -41,7 +41,7 @@ Permite presentar los avisos meteorológicos activos de una zona de Home Assista
 
 ## 🚀 Instalación con HACS
 
-La tarjeta está preparada como repositorio **Dashboard** de HACS.
+La tarjeta está preparada como repositorio **Dashboard / Plugin** de HACS.
 
 ### Repositorio personalizado
 
@@ -58,7 +58,7 @@ Mientras el repositorio no forme parte del catálogo predeterminado de HACS:
 6. Instala **AEMET Alertas Card**.
 7. Reinicia o recarga los recursos del frontend si Home Assistant lo solicita.
 
-HACS utiliza ahora `aemet-alertas-card-responsive.js` como punto de entrada oficial. Este recurso importa la tarjeta estable y añade el sistema de layout responsive por ancho real y el soporte de tamaño para Sections.
+HACS utiliza `aemet-alertas-card-responsive.js` como punto de entrada oficial. Este recurso importa la tarjeta estable y añade el sistema de layout responsive por ancho real y el soporte de tamaño para Sections.
 
 ---
 
@@ -210,18 +210,20 @@ El nivel se obtiene de los datos del aviso y se utiliza para adaptar automática
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── hacs.yaml
 ├── aemet-alertas-card.js
 ├── aemet-alertas-card-responsive.js
 ├── aemet-alertas-card-core.js
-├── aemet-alertas-card-enhancements.js
-├── aemet-alertas-card-responsive-v3.js
-├── aemet-alertas-card-responsive-v4.js
 ├── hacs.json
 ├── README.md
 └── LICENSE
 ```
 
-El punto de entrada recomendado para la instalación es `aemet-alertas-card-responsive.js`. La tarjeta base y sus componentes se mantienen separados para facilitar la evolución y conservar la versión estable del diseño.
+El punto de entrada de HACS es `aemet-alertas-card-responsive.js`. Este módulo importa la implementación estable de `aemet-alertas-card.js`, mientras que `aemet-alertas-card-core.js` contiene la lógica principal de la tarjeta.
+
+Las variantes experimentales y prototipos responsive se han eliminado del repositorio público para mantener una estructura limpia y evitar que los usuarios carguen archivos obsoletos por error.
 
 ---
 
