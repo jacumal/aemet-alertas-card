@@ -1,12 +1,12 @@
 /*
  * AEMET Alertas Card — Premium Animated Edition
- * Loader + stable seamless title marquee.
+ * Loader + stable title marquee.
  */
 
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v4";
+  const STYLE_ID = "aemet-alertas-marquee-style-v5";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -18,18 +18,13 @@ import "./aemet-alertas-card-core.js";
         overflow: hidden !important;
       }
       aemet-alertas-card .title {
-        display: flex !important;
+        display: block !important;
         width: max-content !important;
         max-width: none !important;
         overflow: visible !important;
         text-overflow: clip !important;
         white-space: nowrap !important;
         will-change: transform;
-        gap: 48px;
-      }
-      aemet-alertas-card .title .aemet-marquee-copy {
-        display: block;
-        flex: 0 0 auto;
       }
     `;
     document.head.appendChild(style);
@@ -50,63 +45,54 @@ import "./aemet-alertas-card-core.js";
     return cards;
   };
 
-  const buildCopies = (title, text) => {
-    title.textContent = "";
-    title.setAttribute("aria-label", text);
-
-    const first = document.createElement("span");
-    first.className = "aemet-marquee-copy";
-    first.textContent = text;
-
-    const second = document.createElement("span");
-    second.className = "aemet-marquee-copy";
-    second.setAttribute("aria-hidden", "true");
-    second.textContent = text;
-
-    title.append(first, second);
-  };
-
   const animateTitle = (title) => {
     if (!title?.isConnected) return;
 
     const parent = title.parentElement;
     if (!parent) return;
 
-    const existingText = title._aemetMarqueeOriginalText;
-    const text = existingText || title.textContent || "";
+    // The core card may rerender the title. Keep the original text only.
+    const text = title._aemetMarqueeOriginalText || title.textContent || "";
     if (!text.trim()) return;
 
     parent.style.minWidth = "0";
     parent.style.overflow = "hidden";
 
-    title.style.display = "flex";
+    title.style.display = "block";
     title.style.width = "max-content";
     title.style.maxWidth = "none";
     title.style.whiteSpace = "nowrap";
     title.style.overflow = "visible";
     title.style.textOverflow = "clip";
 
-    if (title._aemetMarqueeOriginalText !== text || !title.querySelector(".aemet-marquee-copy")) {
+    if (title._aemetMarqueeOriginalText !== text) {
       title._aemetMarqueeAnimation?.cancel();
+      title._aemetMarqueeAnimation = null;
       title._aemetMarqueeOriginalText = text;
-      buildCopies(title, text);
+      title.textContent = text;
     }
 
+    // Measure the real text width against the visible title area.
     const available = parent.clientWidth;
-    const firstCopy = title.querySelector(".aemet-marquee-copy");
-    if (!firstCopy) return;
+    const content = title.scrollWidth;
+    const distance = Math.ceil(content - available);
 
-    const distance = Math.ceil(firstCopy.getBoundingClientRect().width + 48);
-
-    if (distance <= available + 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    if (distance <= 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       title._aemetMarqueeAnimation?.cancel();
+      title._aemetMarqueeAnimation = null;
       title.style.transform = "translate3d(0,0,0)";
       return;
     }
 
-    if (title._aemetMarqueeAnimation) return;
+    // Do not recreate the animation on every Home Assistant update.
+    if (title._aemetMarqueeAnimation && title._aemetMarqueeDistance === distance) return;
 
-    const duration = Math.max(9000, Math.min(16000, 7000 + distance * 22));
+    title._aemetMarqueeAnimation?.cancel();
+
+    // One-way loop: move to the end, then instantly restart at the beginning.
+    // There is no alternate direction and no pause between iterations.
+    const duration = Math.max(6500, Math.min(11000, 5200 + distance * 16));
+    title._aemetMarqueeDistance = distance;
 
     title._aemetMarqueeAnimation = title.animate(
       [
@@ -115,7 +101,7 @@ import "./aemet-alertas-card-core.js";
       ],
       {
         duration,
-        delay: 1200,
+        delay: 900,
         iterations: Infinity,
         direction: "normal",
         easing: "linear",
