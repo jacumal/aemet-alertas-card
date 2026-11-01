@@ -19,6 +19,8 @@ import "./aemet-alertas-card-core.js";
     const track = title._aemetMarqueeTrack;
     if (track) track.style.transform = "translate3d(0,0,0)";
     title._aemetMarqueeRunning = false;
+    title._aemetMarqueeCycle = null;
+    title._aemetMarqueeAvailable = null;
   };
 
   const buildMarquee = (title, text) => {
@@ -89,6 +91,22 @@ import "./aemet-alertas-card-core.js";
     const cycle = textWidth + GAP;
     const duration = Math.max(3000, (cycle / SPEED) * 1000);
 
+    // IMPORTANT: Home Assistant can call the card's _render() repeatedly.
+    // Do not restart an already-running marquee on every render: doing so
+    // produces visible jumps and prevents the complete title from ever being
+    // shown. Only restart when the geometry has actually changed.
+    const currentAnimation = title._aemetMarqueeAnimation;
+    if (
+      title._aemetMarqueeRunning &&
+      currentAnimation &&
+      currentAnimation.playState !== "idle" &&
+      title._aemetMarqueeCycle !== null &&
+      Math.abs(title._aemetMarqueeCycle - cycle) < 1 &&
+      title._aemetMarqueeAvailable === available
+    ) {
+      return;
+    }
+
     stopAnimation(title);
 
     // Web Animations API: no CSS @keyframes, no global styles, no reverse motion.
@@ -111,6 +129,7 @@ import "./aemet-alertas-card-core.js";
 
     title._aemetMarqueeAnimation = animation;
     title._aemetMarqueeCycle = cycle;
+    title._aemetMarqueeAvailable = available;
     title._aemetMarqueeRunning = true;
   };
 
@@ -144,7 +163,7 @@ import "./aemet-alertas-card-core.js";
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV16) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV17) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
@@ -154,7 +173,7 @@ import "./aemet-alertas-card-core.js";
       requestAnimationFrame(() => enhanceCard(this));
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV16 = true;
+    Card.prototype._aemetMarqueeRenderPatchV17 = true;
   };
 
   const boot = () => {
