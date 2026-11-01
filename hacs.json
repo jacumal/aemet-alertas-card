@@ -1,7 +1,7 @@
 {
   "name": "AEMET Alertas Card",
   "content_in_root": true,
-  "filename": "aemet-alertas-card.js",
+  "filename": "aemet-alertas-card-responsive.js",
   "render_readme": true,
   "homeassistant": "2024.1.0"
 }
