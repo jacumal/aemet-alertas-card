@@ -6,7 +6,7 @@
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v8";
+  const STYLE_ID = "aemet-alertas-marquee-style-v9";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -34,13 +34,33 @@ import "./aemet-alertas-card-core.js";
         max-width: none !important;
         white-space: nowrap !important;
         will-change: transform;
+        flex-shrink: 0 !important;
       }
 
       aemet-alertas-card .aemet-marquee-copy {
         display: block !important;
         flex: 0 0 auto !important;
+        width: max-content !important;
         white-space: nowrap !important;
-        padding-right: 28px !important;
+        padding-right: 36px !important;
+      }
+
+      aemet-alertas-card .aemet-marquee-track.aemet-marquee-running {
+        animation-name: aemet-alertas-marquee-v9;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+      }
+
+      @keyframes aemet-alertas-marquee-v9 {
+        from { transform: translate3d(0, 0, 0); }
+        to { transform: translate3d(var(--aemet-marquee-distance), 0, 0); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        aemet-alertas-card .aemet-marquee-track {
+          animation: none !important;
+          transform: none !important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -50,27 +70,26 @@ import "./aemet-alertas-card-core.js";
     const cards = [];
     const walk = (root) => {
       if (!root) return;
-
       root.querySelectorAll?.("aemet-alertas-card").forEach((card) => {
         if (!cards.includes(card)) cards.push(card);
       });
-
       root.querySelectorAll?.("*").forEach((el) => {
         if (el.shadowRoot) walk(el.shadowRoot);
       });
     };
-
     walk(document);
     return cards;
   };
 
   const stopAnimation = (title) => {
-    if (title._aemetMarqueeFrame) {
-      cancelAnimationFrame(title._aemetMarqueeFrame);
-      title._aemetMarqueeFrame = null;
+    const track = title._aemetMarqueeTrack;
+    if (track) {
+      track.classList.remove("aemet-marquee-running");
+      track.style.removeProperty("--aemet-marquee-distance");
+      track.style.removeProperty("animation-duration");
+      track.style.transform = "translate3d(0,0,0)";
     }
     title._aemetMarqueeRunning = false;
-    title._aemetMarqueeStart = null;
   };
 
   const buildMarquee = (title, text) => {
@@ -106,55 +125,37 @@ import "./aemet-alertas-card-core.js";
     if (!track || !first || !title.isConnected) return;
 
     const available = title.clientWidth;
-    const distance = Math.ceil(first.getBoundingClientRect().width);
+    const firstWidth = Math.ceil(first.getBoundingClientRect().width);
 
     if (
-      distance <= available + 4 ||
+      firstWidth <= available + 4 ||
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     ) {
       stopAnimation(title);
-      track.style.transform = "translate3d(0,0,0)";
       return;
     }
 
-    // Do not restart an already running marquee just because Home Assistant
-    // caused another layout pass. Restarting here was the source of the
-    // apparent forward/backward motion in previous versions.
-    if (title._aemetMarqueeRunning && title._aemetMarqueeDistance === distance) {
+    // The first copy includes its 36px right spacing. The second copy starts
+    // at exactly this distance, so when the CSS animation loops, the screen
+    // is identical to its initial state: no reverse, no pause and no flash.
+    const distance = firstWidth;
+    const speed = 34; // px/s — slow, readable and continuous
+    const duration = distance / speed;
+
+    track.classList.remove("aemet-marquee-running");
+    track.style.setProperty("--aemet-marquee-distance", `-${distance}px`);
+    track.style.animationDuration = `${duration}s`;
+
+    // Force a clean CSS animation start only when geometry actually changed.
+    const signature = `${distance}:${available}`;
+    if (title._aemetMarqueeGeometry === signature && title._aemetMarqueeRunning) {
       return;
     }
 
-    stopAnimation(title);
-    title._aemetMarqueeDistance = distance;
+    title._aemetMarqueeGeometry = signature;
+    void track.offsetWidth;
+    track.classList.add("aemet-marquee-running");
     title._aemetMarqueeRunning = true;
-
-    // Constant premium speed. There is deliberately NO delay and NO reverse.
-    const speed = 34;
-
-    const frame = (now) => {
-      if (!title.isConnected || !track.isConnected) {
-        stopAnimation(title);
-        return;
-      }
-
-      if (title._aemetMarqueeStart === null) {
-        title._aemetMarqueeStart = now;
-      }
-
-      const elapsed = (now - title._aemetMarqueeStart) / 1000;
-      const distanceTravelled = (elapsed * speed) % distance;
-
-      // The track contains two identical copies. At distanceTravelled ===
-      // distance, copy #2 is exactly where copy #1 was at zero. The modulo
-      // therefore creates a mathematically continuous loop: no flash, no
-      // reverse movement and no jump back to the beginning of the text.
-      track.style.transform = `translate3d(${-distanceTravelled}px,0,0)`;
-
-      title._aemetMarqueeFrame = requestAnimationFrame(frame);
-    };
-
-    title._aemetMarqueeStart = null;
-    title._aemetMarqueeFrame = requestAnimationFrame(frame);
   };
 
   const enhanceTitle = (title) => {
@@ -174,6 +175,7 @@ import "./aemet-alertas-card-core.js";
       !title.querySelector(".aemet-marquee-track")
     ) {
       buildMarquee(title, text);
+      title._aemetMarqueeGeometry = null;
     }
 
     requestAnimationFrame(() => startAnimation(title));
@@ -187,7 +189,6 @@ import "./aemet-alertas-card-core.js";
           requestAnimationFrame(() => startAnimation(title));
         }
       });
-
       observer.observe(title);
       if (title.parentElement) observer.observe(title.parentElement);
       title._aemetMarqueeResizeObserver = observer;
