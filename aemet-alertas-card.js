@@ -8,6 +8,90 @@ import "./aemet-alertas-card-core.js";
 (() => {
   const GAP = 42;
   const SPEED = 34; // px/s
+  const RESPONSIVE_STYLE_ID = "aemet-alertas-card-responsive-layout-v1";
+
+  const installResponsiveLayout = () => {
+    if (document.getElementById(RESPONSIVE_STYLE_ID)) return;
+
+    const style = document.createElement("style");
+    style.id = RESPONSIVE_STYLE_ID;
+    style.textContent = `
+      aemet-alertas-card.aemet-layout-narrow .detailed-card .card-content {
+        padding: 16px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-alert {
+        grid-template-columns: 1fr;
+        margin-top: 12px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-visual {
+        min-height: 132px;
+        max-height: 132px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-visual .weather-scene {
+        opacity: .72;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-icon-large {
+        transform: scale(.92);
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-visual .level-chip {
+        top: 9px;
+        left: 9px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-main {
+        padding: 15px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .detail-title {
+        font-size: 19px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .times {
+        gap: 7px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .times > div {
+        min-width: 0;
+        padding: 8px;
+      }
+
+      aemet-alertas-card.aemet-layout-narrow .text-block p {
+        line-height: 1.45;
+      }
+
+      aemet-alertas-card.aemet-layout-wide .detail-alert {
+        grid-template-columns: 190px minmax(0, 1fr);
+      }
+
+      aemet-alertas-card.aemet-layout-wide .detail-visual {
+        min-height: 205px;
+      }
+
+      aemet-alertas-card.aemet-layout-wide .metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    `;
+    document.head.appendChild(style);
+  };
+
+  const updateResponsiveLayout = (card) => {
+    if (!card?.isConnected) return;
+    installResponsiveLayout();
+
+    const width = card.clientWidth;
+    card.classList.toggle("aemet-layout-narrow", width > 0 && width < 620);
+    card.classList.toggle("aemet-layout-wide", width >= 760);
+  };
 
   const cancelAnimation = (title) => {
     const animation = title?._aemetMarqueeAnimation;
@@ -269,6 +353,7 @@ import "./aemet-alertas-card-core.js";
   const enhanceCard = (card, preservedProgress = 0) => {
     if (!card?.isConnected) return;
     installDomMorph(card);
+    updateResponsiveLayout(card);
     card.querySelectorAll(".title").forEach((title) => enhanceTitle(title, preservedProgress));
   };
 
@@ -277,15 +362,25 @@ import "./aemet-alertas-card-core.js";
     return getAnimationProgress(title) ?? card?._aemetMarqueeProgress ?? 0;
   };
 
+  const patchResizeObserver = (card) => {
+    if (card._aemetResponsiveObserver) return;
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => updateResponsiveLayout(card));
+    observer.observe(card);
+    card._aemetResponsiveObserver = observer;
+  };
+
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV21) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV22) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
 
     Card.prototype._render = function (...args) {
       installDomMorph(this);
+      patchResizeObserver(this);
 
       const progress = captureProgress(this);
       this._aemetMarqueeProgress = progress;
@@ -295,15 +390,17 @@ import "./aemet-alertas-card-core.js";
       enhanceCard(this, this._aemetMarqueeProgress || 0);
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV21 = true;
+    Card.prototype._aemetMarqueeRenderPatchV22 = true;
   };
 
   const boot = () => {
+    installResponsiveLayout();
     patchRender();
 
     const Card = customElements.get("aemet-alertas-card");
     if (Card) {
       document.querySelectorAll("aemet-alertas-card").forEach((card) => {
+        patchResizeObserver(card);
         enhanceCard(card, captureProgress(card));
       });
     }
