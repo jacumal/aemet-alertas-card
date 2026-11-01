@@ -31,7 +31,7 @@ import "./aemet-alertas-card-core.js";
    * The card core historically uses `this.innerHTML = ...` on every Home Assistant
    * update. Replacing the whole DOM destroys the animated title and is the source
    * of the visible flashes/jumps. We intercept that assignment only for this card
-   * and morph the existing DOM in place, deliberately preserving `.title`.
+   * and morph its children in place, deliberately preserving `.title`.
    */
   const morphNode = (oldNode, newNode) => {
     if (oldNode.nodeType !== newNode.nodeType) {
@@ -93,6 +93,29 @@ import "./aemet-alertas-card-core.js";
     return oldElement;
   };
 
+  const morphChildren = (oldParent, newParent) => {
+    const oldChildren = Array.from(oldParent.childNodes);
+    const newChildren = Array.from(newParent.childNodes);
+    const length = Math.max(oldChildren.length, newChildren.length);
+
+    for (let i = length - 1; i >= 0; i--) {
+      const oldChild = oldChildren[i];
+      const newChild = newChildren[i];
+
+      if (!newChild) {
+        oldChild?.remove();
+        continue;
+      }
+
+      if (!oldChild) {
+        oldParent.appendChild(newChild.cloneNode(true));
+        continue;
+      }
+
+      morphNode(oldChild, newChild);
+    }
+  };
+
   const installDomMorph = (card) => {
     if (card._aemetMarqueeDomMorphInstalled) return;
 
@@ -113,7 +136,7 @@ import "./aemet-alertas-card-core.js";
 
         const template = document.createElement("template");
         template.innerHTML = value;
-        morphNode(this, template.content);
+        morphChildren(this, template.content);
       },
     });
 
@@ -248,7 +271,7 @@ import "./aemet-alertas-card-core.js";
 
   const patchRender = () => {
     const Card = customElements.get("aemet-alertas-card");
-    if (!Card || Card.prototype._aemetMarqueeRenderPatchV19) return;
+    if (!Card || Card.prototype._aemetMarqueeRenderPatchV20) return;
 
     const originalRender = Card.prototype._render;
     if (typeof originalRender !== "function") return;
@@ -264,7 +287,7 @@ import "./aemet-alertas-card-core.js";
       enhanceCard(this, this._aemetMarqueeProgress || 0);
     };
 
-    Card.prototype._aemetMarqueeRenderPatchV19 = true;
+    Card.prototype._aemetMarqueeRenderPatchV20 = true;
   };
 
   const boot = () => {
