@@ -1,12 +1,12 @@
 /*
  * AEMET Alertas Card — Premium Animated Edition
- * Loader + stable title marquee.
+ * Loader + stable seamless title marquee.
  */
 
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v3";
+  const STYLE_ID = "aemet-alertas-marquee-style-v4";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -18,13 +18,18 @@ import "./aemet-alertas-card-core.js";
         overflow: hidden !important;
       }
       aemet-alertas-card .title {
-        display: block !important;
+        display: flex !important;
         width: max-content !important;
         max-width: none !important;
         overflow: visible !important;
         text-overflow: clip !important;
         white-space: nowrap !important;
         will-change: transform;
+        gap: 48px;
+      }
+      aemet-alertas-card .title .aemet-marquee-copy {
+        display: block;
+        flex: 0 0 auto;
       }
     `;
     document.head.appendChild(style);
@@ -45,54 +50,75 @@ import "./aemet-alertas-card-core.js";
     return cards;
   };
 
+  const buildCopies = (title, text) => {
+    title.textContent = "";
+    title.setAttribute("aria-label", text);
+
+    const first = document.createElement("span");
+    first.className = "aemet-marquee-copy";
+    first.textContent = text;
+
+    const second = document.createElement("span");
+    second.className = "aemet-marquee-copy";
+    second.setAttribute("aria-hidden", "true");
+    second.textContent = text;
+
+    title.append(first, second);
+  };
+
   const animateTitle = (title) => {
     if (!title?.isConnected) return;
 
     const parent = title.parentElement;
     if (!parent) return;
 
-    const text = title.textContent || "";
+    const existingText = title._aemetMarqueeOriginalText;
+    const text = existingText || title.textContent || "";
     if (!text.trim()) return;
 
     parent.style.minWidth = "0";
     parent.style.overflow = "hidden";
 
-    title.style.display = "block";
+    title.style.display = "flex";
     title.style.width = "max-content";
     title.style.maxWidth = "none";
     title.style.whiteSpace = "nowrap";
     title.style.overflow = "visible";
     title.style.textOverflow = "clip";
 
-    const available = parent.clientWidth;
-    const content = title.scrollWidth;
-    const distance = Math.ceil(content - available);
+    if (title._aemetMarqueeOriginalText !== text || !title.querySelector(".aemet-marquee-copy")) {
+      title._aemetMarqueeAnimation?.cancel();
+      title._aemetMarqueeOriginalText = text;
+      buildCopies(title, text);
+    }
 
-    if (distance <= 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    const available = parent.clientWidth;
+    const firstCopy = title.querySelector(".aemet-marquee-copy");
+    if (!firstCopy) return;
+
+    const distance = Math.ceil(firstCopy.getBoundingClientRect().width + 48);
+
+    if (distance <= available + 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      title._aemetMarqueeAnimation?.cancel();
       title.style.transform = "translate3d(0,0,0)";
       return;
     }
 
-    if (title._aemetMarqueeText === text && title._aemetMarqueeAnimation) return;
+    if (title._aemetMarqueeAnimation) return;
 
-    title._aemetMarqueeAnimation?.cancel();
-
-    const duration = Math.max(14000, Math.min(22000, 13000 + distance * 45));
-    title._aemetMarqueeText = text;
+    const duration = Math.max(9000, Math.min(16000, 7000 + distance * 22));
 
     title._aemetMarqueeAnimation = title.animate(
       [
-        { transform: "translate3d(0,0,0)", offset: 0 },
-        { transform: "translate3d(0,0,0)", offset: 0.16 },
-        { transform: `translate3d(-${distance}px,0,0)`, offset: 0.84 },
-        { transform: `translate3d(-${distance}px,0,0)`, offset: 1 },
+        { transform: "translate3d(0,0,0)" },
+        { transform: `translate3d(-${distance}px,0,0)` },
       ],
       {
         duration,
-        delay: 1800,
+        delay: 1200,
         iterations: Infinity,
-        direction: "alternate",
-        easing: "ease-in-out",
+        direction: "normal",
+        easing: "linear",
         fill: "both",
       },
     );
