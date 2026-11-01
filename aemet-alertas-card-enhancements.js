@@ -3,10 +3,10 @@
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
+
     const style = document.createElement('style');
     style.id = STYLE_ID;
     style.textContent = `
-      /* Keep the title column shrinkable inside the flex header. */
       aemet-alertas-card .compact-top .brand-row,
       aemet-alertas-card .detail-header .brand-row,
       aemet-alertas-card .title-wrap {
@@ -15,58 +15,90 @@
 
       aemet-alertas-card .title-wrap {
         flex: 1 1 auto !important;
-        overflow: hidden;
+        overflow: hidden !important;
       }
 
       aemet-alertas-card .aemet-marquee-viewport {
-        position: relative;
         display: block;
-        overflow: hidden;
-        min-width: 0;
-        max-width: 100%;
+        position: relative;
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow: hidden !important;
         white-space: nowrap;
         mask-image: linear-gradient(to right, transparent 0, black 4%, black 96%, transparent 100%);
         -webkit-mask-image: linear-gradient(to right, transparent 0, black 4%, black 96%, transparent 100%);
       }
 
       aemet-alertas-card .aemet-marquee-track {
-        display: inline-flex;
+        display: inline-block;
         width: max-content;
+        max-width: none;
         min-width: max-content;
         white-space: nowrap;
         transform: translate3d(0, 0, 0);
         will-change: transform;
       }
-
-      aemet-alertas-card .aemet-marquee-track.is-overflowing {
-        animation: aemetAlertasMarquee 12s ease-in-out 1.5s infinite alternate;
-      }
-
-      aemet-alertas-card .aemet-marquee-track::after {
-        content: '';
-        display: block;
-        width: 72px;
-        flex: 0 0 72px;
-      }
-
-      @keyframes aemetAlertasMarquee {
-        0%, 15% { transform: translate3d(0, 0, 0); }
-        85%, 100% { transform: translate3d(calc(-1 * var(--aemet-marquee-distance, 0px)), 0, 0); }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        aemet-alertas-card .aemet-marquee-track.is-overflowing {
-          animation: none !important;
-          transform: none !important;
-        }
-      }
     `;
     document.head.appendChild(style);
   };
 
+  const animateTitle = (viewport, track) => {
+    if (!viewport || !track) return;
+
+    const distance = Math.max(0, Math.ceil(track.getBoundingClientRect().width - viewport.getBoundingClientRect().width));
+    if (distance <= 3) return;
+
+    if (viewport._aemetAnimation) {
+      viewport._aemetAnimation.cancel();
+    }
+
+    const duration = Math.max(9000, Math.min(18000, distance * 45));
+    const pause = 1800;
+
+    track.style.transform = 'translate3d(0, 0, 0)';
+
+    const run = () => {
+      if (!track.isConnected || !viewport.isConnected) return;
+
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        track.style.transform = 'translate3d(0, 0, 0)';
+        return;
+      }
+
+      viewport._aemetAnimation = track.animate(
+        [
+          { transform: 'translate3d(0, 0, 0)', offset: 0 },
+          { transform: 'translate3d(0, 0, 0)', offset: 0.14 },
+          { transform: `translate3d(-${distance}px, 0, 0)`, offset: 0.86 },
+          { transform: `translate3d(-${distance}px, 0, 0)`, offset: 1 },
+        ],
+        {
+          duration,
+          delay: pause,
+          easing: 'ease-in-out',
+          iterations: 1,
+          fill: 'forwards',
+        }
+      );
+
+      viewport._aemetAnimation.onfinish = () => {
+        if (!track.isConnected) return;
+        track.style.transform = `translate3d(-${distance}px, 0, 0)`;
+        setTimeout(() => {
+          if (!track.isConnected) return;
+          track.style.transform = 'translate3d(0, 0, 0)';
+          run();
+        }, 1800);
+      };
+    };
+
+    run();
+  };
+
   const enhanceTitle = (title) => {
     if (!title || title.dataset.aemetMarqueeReady === 'true') return;
+
     const text = title.textContent?.trim();
     if (!text) return;
 
@@ -83,15 +115,12 @@
     title.replaceWith(viewport);
 
     const update = () => {
-      const distance = Math.max(0, Math.ceil(track.scrollWidth - viewport.clientWidth));
-      track.style.setProperty('--aemet-marquee-distance', `${distance}px`);
-      track.classList.toggle('is-overflowing', distance > 2);
+      requestAnimationFrame(() => animateTitle(viewport, track));
     };
 
-    requestAnimationFrame(() => {
-      requestAnimationFrame(update);
-    });
-    setTimeout(update, 150);
+    requestAnimationFrame(update);
+    setTimeout(update, 100);
+    setTimeout(update, 500);
 
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(update);
@@ -112,6 +141,7 @@
     const observer = new MutationObserver(() => {
       document.querySelectorAll('aemet-alertas-card').forEach(enhanceCard);
     });
+
     observer.observe(document.body, { childList: true, subtree: true });
   };
 
