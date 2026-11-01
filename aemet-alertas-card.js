@@ -1,29 +1,22 @@
 /*
- * AEMET Alertas Card — Premium title marquee
- *
- * The core card stays responsible for rendering. This module hooks the card's
- * own render cycle so the title animation is applied after every HA update,
- * without depending on dashboard shadow-root traversal or duplicate DOM nodes.
+ * AEMET Alertas Card — Premium Animated Edition
+ * Loader + stable title marquee.
  */
 
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style";
-  const PATCHED = "__aemetAlertasMarqueePatched";
+  const STYLE_ID = "aemet-alertas-marquee-style-v2";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
-
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
       aemet-alertas-card .title-wrap {
         min-width: 0 !important;
-        max-width: 100% !important;
         overflow: hidden !important;
       }
-
       aemet-alertas-card .title {
         display: block !important;
         width: max-content !important;
@@ -37,24 +30,31 @@ import "./aemet-alertas-card-core.js";
     document.head.appendChild(style);
   };
 
-  const stop = (title) => {
-    if (title._aemetMarqueeAnimation) {
-      title._aemetMarqueeAnimation.cancel();
-      title._aemetMarqueeAnimation = null;
-    }
-    title.style.removeProperty("--aemet-marquee-distance");
+  const findCards = () => {
+    const cards = [];
+    const walk = (root) => {
+      if (!root) return;
+      root.querySelectorAll?.("aemet-alertas-card").forEach((card) => {
+        if (!cards.includes(card)) cards.push(card);
+      });
+      root.querySelectorAll?.("*").forEach((el) => {
+        if (el.shadowRoot) walk(el.shadowRoot);
+      });
+    };
+    walk(document);
+    return cards;
   };
 
   const animateTitle = (title) => {
-    if (!title) return;
+    if (!title?.isConnected) return;
 
     const parent = title.parentElement;
     if (!parent) return;
 
-    stop(title);
+    const text = title.textContent || "";
+    if (!text.trim()) return;
 
     parent.style.minWidth = "0";
-    parent.style.maxWidth = "100%";
     parent.style.overflow = "hidden";
 
     title.style.display = "block";
@@ -63,115 +63,105 @@ import "./aemet-alertas-card-core.js";
     title.style.whiteSpace = "nowrap";
     title.style.overflow = "visible";
     title.style.textOverflow = "clip";
-    title.style.transform = "translate3d(0,0,0)";
 
-    // Force layout after HA has finished inserting the new title.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!title.isConnected || !parent.isConnected) return;
+    const available = parent.clientWidth;
+    const content = title.scrollWidth;
+    const distance = Math.ceil(content - available);
 
-        const available = parent.clientWidth;
-        const content = title.scrollWidth;
-        const distance = Math.ceil(content - available);
+    if (distance <= 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      title.style.transform = "translate3d(0,0,0)";
+      return;
+    }
 
-        if (distance <= 4 || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-          title.style.transform = "translate3d(0,0,0)";
+    const previous = title._aemetMarqueeText;
+    if (previous === text && title._aemetMarqueeAnimation) return;
+
+    title._aemetMarqueeAnimation?.cancel();
+
+    const duration = Math.max(14000, Math.min(22000, 13000 + distance * 45));
+    title._aemetMarqueeText = text;
+
+    title._aemetMarqueeAnimation = title.animate(
+      [
+        { transform: "translate3d(0,0,0)", offset: 0 },
+        { transform: "translate3d(0,0,0)", offset: 0.16 },
+        { transform: `translate3d(-${distance}px,0,0)`, offset: 0.84 },
+        { transform: `translate3d(-${distance}px,0,0)`, offset: 1 },
+      ],
+      {
+        duration,
+        delay: 1800,
+        iterations: Infinity,
+        direction: "alternate",
+        easing: "ease-in-out",
+        fill: "both",
+      },
+    );
+  };
+
+  const enhance = () => {
+    installStyles();
+    findCards().forEach((card) => {
+      card.querySelectorAll(".title").forEach((title) => {
+        requestAnimationFrame(() => animateTitle(title));
+      });
+    });
+  };
+
+  const patchCard = () => {
+    const Card = customElements.get("aemet-alertas-card");
+    if (!Card || Card.prototype._aemetStableHassPatch) return;
+
+    const hassDescriptor = Object.getOwnPropertyDescriptor(Card.prototype, "hass");
+    if (!hassDescriptor?.set) return;
+
+    const originalSetHass = hassDescriptor.set;
+
+    Object.defineProperty(Card.prototype, "hass", {
+      configurable: hassDescriptor.configurable,
+      enumerable: hassDescriptor.enumerable,
+      get: hassDescriptor.get,
+      set(hass) {
+        const entity = this.config?.entity;
+        const state = entity ? hass?.states?.[entity] : undefined;
+        const signature = state
+          ? JSON.stringify({
+              state: state.state,
+              attributes: state.attributes,
+            })
+          : "__missing__";
+
+        if (this._aemetHassSignature === signature && this._aemetHasRendered) {
+          this._hass = hass;
           return;
         }
 
-        const duration = Math.max(14000, Math.min(22000, 13000 + distance * 45));
-        title.style.setProperty("--aemet-marquee-distance", `${distance}px`);
+        this._aemetHassSignature = signature;
+        this._aemetHasRendered = true;
+        originalSetHass.call(this, hass);
 
-        if (typeof title.animate === "function") {
-          title._aemetMarqueeAnimation = title.animate(
-            [
-              { transform: "translate3d(0,0,0)", offset: 0 },
-              { transform: "translate3d(0,0,0)", offset: 0.14 },
-              { transform: `translate3d(-${distance}px,0,0)`, offset: 0.86 },
-              { transform: `translate3d(-${distance}px,0,0)`, offset: 1 },
-            ],
-            {
-              duration,
-              delay: 1200,
-              iterations: Infinity,
-              direction: "alternate",
-              easing: "ease-in-out",
-              fill: "both",
-            },
-          );
-        }
-      });
+        requestAnimationFrame(enhance);
+      },
     });
+
+    Card.prototype._aemetStableHassPatch = true;
   };
 
-  const enhanceCard = (card) => {
-    if (!card || card[PATCHED]) return;
-    if (typeof card._render !== "function") return;
-
-    const originalRender = card._render;
-
-    card._render = function patchedRender(...args) {
-      const result = originalRender.apply(this, args);
-
-      // _render() replaces innerHTML, so the title must be enhanced only
-      // after the new DOM exists. The timeout also covers HA layout timing.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          installStyles();
-          const title = this.querySelector(".title");
-          if (title) animateTitle(title);
-        });
-      });
-
-      return result;
-    };
-
-    card[PATCHED] = true;
-
-    // The card may already have rendered before this module patched it.
-    requestAnimationFrame(() => {
-      installStyles();
-      const title = card.querySelector(".title");
-      if (title) animateTitle(title);
-    });
-  };
-
-  const hookPrototype = () => {
+  const boot = () => {
     installStyles();
-
-    const Constructor = customElements.get("aemet-alertas-card");
-    if (!Constructor || !Constructor.prototype) return;
-
-    const proto = Constructor.prototype;
-    if (proto[PATCHED]) return;
-
-    const originalRender = proto._render;
-    if (typeof originalRender !== "function") return;
-
-    proto._render = function patchedRender(...args) {
-      const result = originalRender.apply(this, args);
-
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          installStyles();
-          const title = this.querySelector(".title");
-          if (title) animateTitle(title);
-        });
-      });
-
-      return result;
-    };
-
-    proto[PATCHED] = true;
-
-    // If the card instance already exists, its next HA update will use the
-    // patched render. We also enhance any existing instance immediately.
-    document.querySelectorAll("aemet-alertas-card").forEach(enhanceCard);
+    patchCard();
+    enhance();
+    setTimeout(enhance, 250);
+    setTimeout(enhance, 1000);
   };
 
   if (customElements.get("aemet-alertas-card")) {
-    hookPrototype();
+    boot();
   } else {
-    customElements.whenDefined("aemet-alertas-card").then(hookPrototype);
+    customElements.whenDefined("aemet-alertas-card").then(boot);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
   }
 })();
