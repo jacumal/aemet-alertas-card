@@ -6,7 +6,7 @@
 import "./aemet-alertas-card-core.js";
 
 (() => {
-  const STYLE_ID = "aemet-alertas-marquee-style-v2";
+  const STYLE_ID = "aemet-alertas-marquee-style-v3";
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -73,8 +73,7 @@ import "./aemet-alertas-card-core.js";
       return;
     }
 
-    const previous = title._aemetMarqueeText;
-    if (previous === text && title._aemetMarqueeAnimation) return;
+    if (title._aemetMarqueeText === text && title._aemetMarqueeAnimation) return;
 
     title._aemetMarqueeAnimation?.cancel();
 
@@ -127,7 +126,11 @@ import "./aemet-alertas-card-core.js";
         const signature = state
           ? JSON.stringify({
               state: state.state,
-              attributes: state.attributes,
+              area: state.attributes?.area,
+              friendly_name: state.attributes?.friendly_name,
+              nivel: state.attributes?.nivel,
+              total_avisos: state.attributes?.total_avisos,
+              avisos: state.attributes?.avisos,
             })
           : "__missing__";
 
@@ -139,7 +142,6 @@ import "./aemet-alertas-card-core.js";
         this._aemetHassSignature = signature;
         this._aemetHasRendered = true;
         originalSetHass.call(this, hass);
-
         requestAnimationFrame(enhance);
       },
     });
