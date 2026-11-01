@@ -17,7 +17,7 @@
 
 **AEMET Alertas Card** es una tarjeta personalizada de Lovelace diseñada para trabajar con la integración [AEMET Alertas](https://github.com/jacumal/aemet-alertas).
 
-Permite presentar los avisos meteorológicos activos de una zona de Home Assistant de una forma clara, visual y adaptada tanto a móvil como a escritorio.
+Permite presentar los avisos meteorológicos activos de una zona de Home Assistant de una forma clara, visual y adaptada al **espacio real disponible de la tarjeta**, desde móvil hasta dashboards de escritorio y pantallas grandes.
 
 > **Importante:** este proyecto es independiente y **no está afiliado, patrocinado, respaldado ni mantenido por AEMET**.
 
@@ -28,7 +28,10 @@ Permite presentar los avisos meteorológicos activos de una zona de Home Assista
 - 🔎 **Modo detallado** con toda la información relevante del aviso.
 - 🔄 **Modo automático**: detallado cuando existen avisos y compacto cuando no los hay.
 - 🌧️ Soporte para **múltiples avisos activos**.
-- 📱 Diseño **responsive** para móvil y escritorio.
+- 📱 **Responsive por ancho real de tarjeta**, no por tamaño de pantalla.
+- 🖥️ Aprovecha mejor el espacio en tablets, escritorio y dashboards panorámicos.
+- 🧱 Compatible con el sistema moderno `getGridOptions()` de Home Assistant Sections.
+- ↔️ El usuario puede **redimensionar la tarjeta** desde el editor de Home Assistant.
 - 🌙 Compatible con los temas claro y oscuro de Home Assistant.
 - 🧩 Sin dependencias externas ni Browser Mod.
 - 🧭 Enlace directo al aviso publicado por AEMET cuando está disponible.
@@ -55,7 +58,7 @@ Mientras el repositorio no forme parte del catálogo predeterminado de HACS:
 6. Instala **AEMET Alertas Card**.
 7. Reinicia o recarga los recursos del frontend si Home Assistant lo solicita.
 
-HACS gestiona el recurso JavaScript automáticamente.
+HACS utiliza ahora `aemet-alertas-card-responsive.js` como punto de entrada oficial. Este recurso importa la tarjeta estable y añade el sistema de layout responsive por ancho real y el soporte de tamaño para Sections.
 
 ---
 
@@ -143,6 +146,51 @@ El valor predeterminado es `5`.
 
 ---
 
+## 📐 Ancho y layout responsive
+
+La versión oficial utiliza el **ancho real que Home Assistant asigna a la tarjeta**. Esto evita un problema habitual en dashboards: una pantalla de escritorio puede ser enorme, pero una tarjeta concreta puede ocupar solo media sección.
+
+El diseño cambia automáticamente según el ancho de la propia tarjeta:
+
+| Ancho aproximado de la tarjeta | Layout |
+|---|---|
+| `< 560 px` | 📱 Vertical, optimizado para móvil |
+| `560–759 px` | 📲 Horizontal compacto, pensado para tablet |
+| `760–1099 px` | 🖥️ Horizontal amplio, con métricas en 3 columnas |
+| `1100–1399 px` | 🖥️✨ Escritorio ancho |
+| `≥ 1400 px` | 🖥️✨ Pantallas grandes / wall dashboards |
+
+Esto significa que **no importa si el dispositivo es un móvil, iPad, portátil o PC**: la tarjeta responde al espacio que realmente tiene.
+
+### Redimensionar la tarjeta en Home Assistant
+
+En los dashboards modernos de tipo **Sections**, Home Assistant utiliza una cuadrícula de 12 columnas. La tarjeta declara un tamaño inicial de ancho completo y permite reducirla hasta 6 columnas.
+
+Puedes modificar el ancho desde el editor visual de Home Assistant o mediante `grid_options`:
+
+```yaml
+type: custom:aemet-alertas-card
+entity: sensor.alertas_amarillas_litoral_norte_de_valencia
+mode: detailed
+grid_options:
+  columns: 12
+  rows: 8
+```
+
+Para una tarjeta a media anchura:
+
+```yaml
+grid_options:
+  columns: 6
+  rows: 8
+```
+
+El objetivo es que cada usuario pueda decidir cuánto espacio quiere dedicar a AEMET sin que la tarjeta tenga que conocer el tamaño de su monitor.
+
+> 💡 **Recomendación:** en escritorio y wall dashboards, utiliza una tarjeta de `9` o `12` columnas para aprovechar el layout horizontal. En móvil normalmente Home Assistant la mostrará a ancho completo automáticamente.
+
+---
+
 ## 🟢🟡🟠🔴 Niveles de aviso
 
 La tarjeta interpreta los niveles proporcionados por AEMET Alertas:
@@ -158,41 +206,40 @@ El nivel se obtiene de los datos del aviso y se utiliza para adaptar automática
 
 ---
 
-## 📱 Diseño responsive
-
-La tarjeta adapta su distribución al espacio disponible y está pensada para funcionar correctamente en:
-
-- Ordenadores.
-- Tablets.
-- Smartphones.
-- Dashboards en modo oscuro.
-- Dashboards en modo claro.
-
-No utiliza librerías JavaScript externas.
-
----
-
 ## 🧱 Estructura del repositorio
 
 ```text
 .
 ├── aemet-alertas-card.js
+├── aemet-alertas-card-responsive.js
+├── aemet-alertas-card-core.js
+├── aemet-alertas-card-enhancements.js
+├── aemet-alertas-card-responsive-v3.js
+├── aemet-alertas-card-responsive-v4.js
 ├── hacs.json
 ├── README.md
 └── LICENSE
 ```
 
-El proyecto es deliberadamente sencillo: la tarjeta se distribuye como un único recurso JavaScript y no necesita proceso de compilación para su instalación.
+El punto de entrada recomendado para la instalación es `aemet-alertas-card-responsive.js`. La tarjeta base y sus componentes se mantienen separados para facilitar la evolución y conservar la versión estable del diseño.
 
 ---
 
 ## 🛠️ Desarrollo
 
-El recurso principal es:
+El punto de entrada oficial es:
 
 ```text
-aemet-alertas-card.js
+aemet-alertas-card-responsive.js
 ```
+
+Este módulo importa la tarjeta estable `aemet-alertas-card.js` y aplica:
+
+- Layout responsive mediante **CSS Container Queries**.
+- Adaptación al ancho real de la tarjeta.
+- Distribución horizontal progresiva en tarjetas anchas.
+- Soporte `getGridOptions()` para Home Assistant Sections.
+- Conservación del comportamiento estable del marquee y del renderizado actual.
 
 La tarjeta utiliza APIs estándar del frontend de Home Assistant y Web Components nativos.
 
@@ -217,27 +264,3 @@ El apoyo es totalmente opcional y ayuda a mantener y mejorar el proyecto.
 ## ⚖️ Aviso legal
 
 AEMET Alertas Card utiliza información proporcionada por la integración AEMET Alertas, cuyos datos proceden de los canales oficiales de AEMET.
-
-**Este proyecto no es oficial de AEMET y no está afiliado, patrocinado, respaldado ni mantenido por AEMET.**
-
-Consulta las condiciones de reutilización de AEMET antes de redistribuir o utilizar sus datos:
-
-https://www.aemet.es/es/nota_legal
-
----
-
-## 📄 Licencia
-
-Este proyecto se distribuye bajo licencia **MIT**. Consulta [`LICENSE`](LICENSE) para más información.
-
-## 👨‍💻 Créditos
-
-Desarrollado por **Javi / [@jacumal](https://github.com/jacumal)** para la comunidad de Home Assistant.
-
----
-
-<div align="center">
-
-**AEMET Alertas Card · Home Assistant · Lovelace**
-
-</div>
