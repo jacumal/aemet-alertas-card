@@ -49,6 +49,7 @@ Ejemplos reales de la tarjeta mostrando diferentes niveles y tipos de avisos met
 - 🖥️ Aprovecha mejor el espacio en tablets, escritorio y dashboards panorámicos.
 - 🧱 Compatible con el sistema moderno `getGridOptions()` de Home Assistant Sections.
 - ↔️ El usuario puede **redimensionar la tarjeta** desde el editor de Home Assistant.
+- 🧩 **Editor visual nativo** para seleccionar entidad y configurar las opciones principales sin crear una tarjeta manual.
 - 🌙 Compatible con los temas claro y oscuro de Home Assistant.
 - 🧩 Sin dependencias externas ni Browser Mod.
 - 🧭 Enlace directo al aviso publicado por AEMET cuando está disponible.
@@ -75,7 +76,7 @@ Mientras el repositorio no forme parte del catálogo predeterminado de HACS:
 6. Instala **AEMET Alertas Card**.
 7. Reinicia o recarga los recursos del frontend si Home Assistant lo solicita.
 
-HACS utiliza `aemet-alertas-card-responsive.js` como punto de entrada oficial. Este recurso importa la tarjeta estable y añade el sistema de layout responsive por ancho real y el soporte de tamaño para Sections.
+HACS utiliza `aemet-alertas-card-responsive.js` como punto de entrada oficial. Este recurso importa la tarjeta estable, el editor visual y añade el sistema de layout responsive por ancho real y el soporte de tamaño para Sections.
 
 ---
 
@@ -92,6 +93,17 @@ La tarjeta no obtiene datos directamente de AEMET: utiliza los atributos de la e
 ---
 
 ## ⚙️ Configuración
+
+### Editor visual de Home Assistant
+
+La tarjeta incluye un **editor visual nativo**. Después de instalarla desde HACS, puedes añadirla desde el selector de tarjetas de Home Assistant y configurar:
+
+- 📍 **Entidad** AEMET.
+- 🎛️ **Modo**: Automático, Compacto o Detallado.
+- 👁️ **Mostrar cuando no hay avisos**.
+- 🔢 **Número máximo de avisos**.
+
+No es necesario crear una tarjeta manual ni añadir un recurso JavaScript desde **Ajustes → Paneles de control → Recursos**.
 
 ### Modo compacto
 
@@ -218,71 +230,3 @@ La tarjeta interpreta los niveles proporcionados por AEMET Alertas:
 | 🟡 Amarillo | Aviso amarillo |
 | 🟠 Naranja | Aviso naranja |
 | 🔴 Rojo | Aviso rojo |
-
-El nivel se obtiene de los datos del aviso y se utiliza para adaptar automáticamente la interfaz.
-
----
-
-## 🧱 Estructura del repositorio
-
-```text
-.
-├── .github/
-│   └── workflows/
-│       └── hacs.yaml
-├── aemet-alertas-card.js
-├── aemet-alertas-card-responsive.js
-├── aemet-alertas-card-core.js
-├── hacs.json
-├── README.md
-├── screenshots/
-│   ├── aemet-alerta-naranja-tenerife.PNG
-│   └── aemet-alerta-amarillo-ampurdan.PNG
-└── LICENSE
-```
-
-El punto de entrada de HACS es `aemet-alertas-card-responsive.js`. Este módulo importa la implementación estable de `aemet-alertas-card.js`, mientras que `aemet-alertas-card-core.js` contiene la lógica principal de la tarjeta.
-
-Las variantes experimentales y prototipos responsive se han eliminado del repositorio público para mantener una estructura limpia y evitar que los usuarios carguen archivos obsoletos por error.
-
----
-
-## 🛠️ Desarrollo
-
-El punto de entrada oficial es:
-
-```text
-aemet-alertas-card-responsive.js
-```
-
-Este módulo importa la tarjeta estable `aemet-alertas-card.js` y aplica:
-
-- Layout responsive mediante **CSS Container Queries**.
-- Adaptación al ancho real de la tarjeta.
-- Distribución horizontal progresiva en tarjetas anchas.
-- Soporte `getGridOptions()` para Home Assistant Sections.
-- Conservación del comportamiento estable del marquee y del renderizado actual.
-
-La tarjeta utiliza APIs estándar del frontend de Home Assistant y Web Components nativos.
-
-Para probar cambios localmente, carga el recurso JavaScript desde tu instancia de Home Assistant y actualiza el navegador después de modificarlo.
-
----
-
-## ☕️ Apoya el proyecto
-
-Si **AEMET Alertas Card** te resulta útil, puedes apoyar su desarrollo con un café:
-
-<p align="center">
-  <a href="https://www.buymeacoffee.com/jacumal">
-    <img src="https://img.shields.io/badge/☕️%20Buy%20Me%20a%20Coffee-Apoyar%20el%20proyecto-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=000000" alt="Buy Me a Coffee">
-  </a>
-</p>
-
-El apoyo es totalmente opcional y ayuda a mantener y mejorar el proyecto.
-
----
-
-## ⚖️ Aviso legal
-
-AEMET Alertas Card utiliza información proporcionada por la integración AEMET Alertas, cuyos datos proceden de los canales oficiales de AEMET.
